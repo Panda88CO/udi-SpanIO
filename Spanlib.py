@@ -102,13 +102,20 @@ class SpanAccess(object):
             
 
 
-    def update_Accum_EnergyBreaker(self, breaker_id, ):
-        hourSec = 3600 # 60*60
-        daySec = 86400 # 60*60*24
-        #logging.debug(f'update_Accum_Energy {breaker_id}')
-        update_time = self.span_data['circuit_info'][breaker_id]['energyAccumUpdateTimeS']
-        produced_energy = self.span_data['circuit_info'][breaker_id]['producedEnergyWh']
-        consumed_energy = self.span_data['circuit_info'][breaker_id]['consumedEnergyWh']
+    def update_Accum_EnergyBreaker(self, breaker_id ):
+        try:
+            hourSec = 3600 # 60*60
+            daySec = 86400 # 60*60*24
+            #logging.debug(f'update_Accum_Energy {breaker_id}')
+            update_time = self.span_data['circuit_info'][breaker_id]['energyAccumUpdateTimeS']
+            produced_energy = self.span_data['circuit_info'][breaker_id]['producedEnergyWh']
+            consumed_energy = self.span_data['circuit_info'][breaker_id]['consumedEnergyWh']
+        except KeyError as e:
+            update_time = time.time.now()
+            produced_energy = 0 
+            consumed_energy =  0
+            logging.debug('update_Accum_EnergyBreaker - key error {} {}',format(json.dumps(breaker_id, self.span_data['circuit_info'], indent=4, separators=(',', ': ') )))        
+
         if breaker_id not in self.accum_data:
             self.accum_data[breaker_id] = {}
 
@@ -125,20 +132,23 @@ class SpanAccess(object):
         cons_24_hour = consumed_energy
         hour_ok = False
         day_ok = False
-        for update_time in self.accum_data[breaker_id]:
+        try:
+            for update_time in self.accum_data[breaker_id]:
 
-            if update_time <= time_1_hour:
-                hour_ok = True
-            if update_time <= time_24_hour:
-                day_ok = True
-            if (abs(update_time - time_1_hour) < abs(t_1hour-time_1_hour)):
-                t_1hour = update_time
-                prod_1_hour = self.accum_data[breaker_id][update_time]['producedWh']
-                cons_1_hour = self.accum_data[breaker_id][update_time]['consumedWh']
-            if (abs(update_time - time_24_hour) < abs(t_24hour-time_24_hour)):
-                t_24hour = update_time
-                prod_24_hour = self.accum_data[breaker_id][update_time]['producedWh']
-                cons_24_hour = self.accum_data[breaker_id][update_time]['consumedWh']
+                if update_time <= time_1_hour:
+                    hour_ok = True
+                if update_time <= time_24_hour:
+                    day_ok = True
+                if (abs(update_time - time_1_hour) < abs(t_1hour-time_1_hour)):
+                    t_1hour = update_time
+                    prod_1_hour = self.accum_data[breaker_id][update_time]['producedWh']
+                    cons_1_hour = self.accum_data[breaker_id][update_time]['consumedWh']
+                if (abs(update_time - time_24_hour) < abs(t_24hour-time_24_hour)):
+                    t_24hour = update_time
+                    prod_24_hour = self.accum_data[breaker_id][update_time]['producedWh']
+                    cons_24_hour = self.accum_data[breaker_id][update_time]['consumedWh']
+        except KeyError as e:
+            logging.debug(f'ERROR UPDATE ACCUM ENERY {e}')
         try:
             delete_list = []
             #logging.debug(f'start delete: {int(time.time())} - {self.accum_data[breaker_id]}')
@@ -228,7 +238,7 @@ class SpanAccess(object):
         logging.debug('get_panel_door_state')
         try:
             return(self.span_data['status']['system']['doorState'])
-        except Exception as e:
+        except KeyError as e:
             return(None)
         
 
@@ -237,7 +247,7 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data['battery_info']))
         try:
             return(self.span_data['battery_info']['soe']['percentage'])
-        except Exception as e:
+        except KeyError as e:
             return(None)
 
 
@@ -246,7 +256,7 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data['panel_info']))
         try:
             return(self.span_data['panel_info']['mainRelayState'])
-        except Exception as e:
+        except KeyError as e:
             return(None)    
 
 
@@ -255,7 +265,7 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data['panel_info']))
         try:
             return(self.span_data['panel_info']['dsmGridState'])
-        except Exception as e:
+        except KeyError as e:
             return(None)    
 
 
@@ -265,7 +275,7 @@ class SpanAccess(object):
         try:
             return(self.span_data['panel_info']['dsmState'])
         
-        except Exception as e:
+        except KeyError as e:
             return(None)    
 
 
@@ -274,7 +284,7 @@ class SpanAccess(object):
         logging.debug('data {}'.format(self.span_data['panel_info']))
         try:
             return(self.span_data['panel_info']['currentRunConfig'])
-        except Exception as e:
+        except KeyError as e:
             return(None)    
 
 
@@ -283,7 +293,7 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data['panel_info']))
         try:
             return(self.span_data['panel_info']['instantGridPowerW'])
-        except Exception as e:
+        except KeyError as e:
             return(None)    
 
     def get_feedthrough_power(self):              
@@ -291,7 +301,7 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data['panel_info']))
         try:
             return(self.span_data['panel_info']['feedthroughPowerW'] )
-        except Exception as e:
+        except KeyError as e:
             return(None)    
 
 
@@ -300,7 +310,7 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data['circuit_info'][breaker_id]))
         try:
             return(self.span_data['circuit_info'][breaker_id]['relayState'] )
-        except Exception as e:
+        except KeyError as e:
             return(None)    
 
     def get_breaker_priority(self, breaker_id):
@@ -308,8 +318,8 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data['circuit_info'][breaker_id]))
         try:
             return(self.span_data['circuit_info'][breaker_id]['priority'] )
-        except Exception as e:
-            return(None)    
+        except KeyError as e:
+            return None    
 
 
     def get_breaker_instant_power(self, breaker_id):
@@ -318,9 +328,9 @@ class SpanAccess(object):
         try:
             pwr = self.span_data['circuit_info'][breaker_id]['instantPowerW']
             meas_time = int(time.time() -self.span_data['circuit_info'][breaker_id]['instantPowerUpdateTimeS'])
-            return(pwr,  meas_time )
+            return pwr,  meas_time
         except Exception as e:
-            return(None)    
+            return None, None    
 
     def get_breaker_energy_info(self, breaker_id):
         logging.debug(f'get_breaker_energy_info {breaker_id}')
@@ -329,9 +339,9 @@ class SpanAccess(object):
             consumed_energy = self.span_data['circuit_info'][breaker_id]['consumedEnergyWh'] 
             meas_time = self.span_data['circuit_info'][breaker_id]['energyAccumUpdateTimeS']
             #logging.debug(f'{breaker_id} get_breaker_energy_info {produced_energy} {consumed_energy} {delay_time}')
-            return(produced_energy, consumed_energy, meas_time)
+            return produced_energy, consumed_energy, meas_time
         except Exception as e:
-            return(None, None, None)  
+            return None, None, None  
 
     def set_breaker_state(self, breaker_id, state):
         logging.debug(f'set_breaker_state {breaker_id} {state}')
@@ -339,7 +349,7 @@ class SpanAccess(object):
         #logging.debug(f'return {code}, {return_data}')
         if code == 200:
             self.span_data['circuit_info'][breaker_id] = return_data
-        return(code == 200)
+        return code == 200
 
     def set_breaker_priority(self, breaker_id, priority):
         logging.debug(f'set_breaker_priority {breaker_id} {priority}')
@@ -347,7 +357,7 @@ class SpanAccess(object):
         #logging.debug(f'return {code}, {return_data}')
         if code == 200:
             self.span_data['circuit_info'][breaker_id] = return_data
-        return( code == 200)
+        return  code == 200
 
 
 ############################
@@ -359,7 +369,7 @@ class SpanAccess(object):
                     "relayStateIn":{"relayState":str(state)}
                     }                
             code, breaker_info = self._callApi('POST', '/circuits/'+str(id), data)
-            return(code, breaker_info)
+            return code, breaker_info
         else:
             return None, None
 
@@ -370,7 +380,7 @@ class SpanAccess(object):
                     "priorityIn":{"priority":str(priority)}
                     }                
             code, breaker_info = self._callApi('POST', '/circuits/'+str(id), data)
-            return(code, breaker_info)
+            return code, breaker_info
         else:
             return None, None
 
@@ -429,14 +439,14 @@ class SpanAccess(object):
         except ValueError as err:
             logging.warning('Access token is not yet available. Please authenticate.')
             #self.poly.Notices['auth'] = 'Please initiate authentication'
-            return
+            return None, None
         if accessToken is None:
             logging.error('Access token is not available')
-            return None
+            return None, None
 
         if url is None:
             logging.error('url is required')
-            return None
+            return None, None
 
         completeUrl = self.yourApiEndpoint + url
 

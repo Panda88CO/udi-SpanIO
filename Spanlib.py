@@ -331,7 +331,7 @@ class SpanAccess(object):
             #logging.debug(f'{breaker_id} get_breaker_energy_info {produced_energy} {consumed_energy} {delay_time}')
             return(produced_energy, consumed_energy, meas_time)
         except Exception as e:
-            return(None)    
+            return(None, None, None)  
 
     def set_breaker_state(self, breaker_id, state):
         logging.debug(f'set_breaker_state {breaker_id} {state}')

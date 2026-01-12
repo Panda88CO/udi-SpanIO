@@ -83,6 +83,9 @@ class SpanAccess(object):
 
     def update_Accum_Energy(self, breaker_id = None, save_to_file = False):
         logging.debug(f'update_Accum_Energy {breaker_id}')
+        if self.span_data.get('circuit_info') is None:
+            return
+
         if breaker_id == None:
             for breaker_id in self.span_data['circuit_info']:
                 self.update_Accum_EnergyBreaker(breaker_id)
@@ -112,7 +115,7 @@ class SpanAccess(object):
             produced_energy = self.span_data['circuit_info'][breaker_id]['producedEnergyWh']
             consumed_energy = self.span_data['circuit_info'][breaker_id]['consumedEnergyWh']
         except KeyError as e:
-            update_time = time.time.now()
+            update_time = time.time()
             produced_energy = 0 
             consumed_energy =  0
             logging.debug('update_Accum_EnergyBreaker - key error {} {}'.format(breaker_id,json.dumps( self.span_data['circuit_info'], indent=4, separators=(',', ': ') )))        

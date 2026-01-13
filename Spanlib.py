@@ -94,7 +94,7 @@ class SpanAccess(object):
 
         if save_to_file:
             f = open(str(self.IP_address)+'.json', 'w')
-            f.write(str(json.dumps( self.accum_data)))
+            f.write(str(json.dumps( self.accum_data, indent=4, separators=(',', ': '))))
             f.close()
             f = open(str(self.IP_address)+'.cvs', 'w')
             f.write('breaker, update_time,consumedWh,producedWh\n')
@@ -137,29 +137,29 @@ class SpanAccess(object):
         hour_ok = False
         day_ok = False
         try:
-            for update_time in self.accum_data[breaker_id]:
+            for saved_time in self.accum_data[breaker_id]:
 
-                if update_time <= time_1_hour:
+                if saved_time <= time_1_hour:
                     hour_ok = True
-                if update_time <= time_24_hour:
+                if saved_time <= time_24_hour:
                     day_ok = True
-                if (abs(update_time - time_1_hour) < abs(t_1hour-time_1_hour)):
-                    t_1hour = update_time
-                    prod_1_hour = self.accum_data[breaker_id][update_time]['producedWh']
-                    cons_1_hour = self.accum_data[breaker_id][update_time]['consumedWh']
-                if (abs(update_time - time_24_hour) < abs(t_24hour-time_24_hour)):
-                    t_24hour = update_time
-                    prod_24_hour = self.accum_data[breaker_id][update_time]['producedWh']
-                    cons_24_hour = self.accum_data[breaker_id][update_time]['consumedWh']
+                if (abs(saved_time - time_1_hour) < abs(t_1hour-time_1_hour)):
+                    t_1hour = saved_time
+                    prod_1_hour = self.accum_data[breaker_id][saved_time]['producedWh']
+                    cons_1_hour = self.accum_data[breaker_id][saved_time]['consumedWh']
+                if (abs(saved_time - time_24_hour) < abs(t_24hour-time_24_hour)):
+                    t_24hour = saved_time
+                    prod_24_hour = self.accum_data[breaker_id][saved_time]['producedWh']
+                    cons_24_hour = self.accum_data[breaker_id][saved_time]['consumedWh']
         except KeyError as e:
             logging.debug(f'ERROR UPDATE ACCUM ENERY {e}')
         try:
             delete_list = []
             #logging.debug(f'start delete: {int(time.time())} - {self.accum_data[breaker_id]}')
-            for update_time in self.accum_data[breaker_id]:
-                logging.debug(f'update time {update_time}')
-                if update_time < t_24hour:
-                    delete_list.append(self.accum_data[breaker_id][update_time])
+            for saved_time in self.accum_data[breaker_id]:
+                logging.debug(f'update time {saved_time}')
+                if saved_time < t_24hour:
+                    delete_list.append(self.accum_data[breaker_id][saved_time])
             #logging.debug(f'deletelist: {delete_list}')
             for indx, meas_data in enumerate(delete_list):
                 #logging.debug(f'remove befor1 {meas_data}, {int(time.time())-daySec} ')

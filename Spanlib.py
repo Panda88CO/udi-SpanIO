@@ -28,7 +28,7 @@ class SpanAccess(object):
         #self.REGISTER    = '/register'
         self.span_data = {}
         self.accum_data = {}
-
+        self.SAVE_TO_FILE = True
 
     def update_panel_status(self):
         try:
@@ -47,7 +47,20 @@ class SpanAccess(object):
         try:
             code, panel = self.getSpanPanelInfo()
             if code == 200:
-               self.span_data['panel_info'] = panel
+                self.span_data['panel_info'] = panel
+                if self.SAVE_TO_FILE:
+                    f = open('Panel_data.json', 'a+')
+                    current_time = time.localtime()
+                    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+                    f.write('\n\v'+time_string)
+                    f.write(str(json.dumps( panel, indent=4, separators=(',', ': '))))
+                    f.close()
+                    #f = open(str(self.IP_address)+'.cvs', 'w')
+                    #f.write('breaker, update_time,consumedWh,producedWh\n')
+                    #for breaker in self.accum_data:
+                    #    for data_time  in self.accum_data[breaker]:
+                    #        f.write(str(breaker)+','+str(data_time)+','+str(self.accum_data[breaker][data_time]['consumedWh'])+','+str(self.accum_data[breaker][data_time]['producedWh'])+'\n')
+                    #f.close()
             else:
                 self.span_data['panel_info'] = None
             return(code )
@@ -59,7 +72,15 @@ class SpanAccess(object):
         try:
             code, battery = self.getSpanBatteryInfo()
             if code == 200:
-               self.span_data['battery_info'] = battery
+                self.span_data['battery_info'] = battery
+                if self.SAVE_TO_FILE:
+                    f = open('battery_data.json', 'a+')
+                    current_time = time.localtime()
+                    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+                    f.write('\n\v'+time_string)                    
+                    f.write(str(json.dumps( battery, indent=4, separators=(',', ': '))))
+                    f.close()
+               
             else:
                 self.span_data['battery_info'] = None
             return(code )
@@ -72,8 +93,14 @@ class SpanAccess(object):
         try:
             code, circuits = self.getSpanCircuitsInfo()
             if code == 200:
-               self.span_data['circuit_info'] = circuits
-
+                self.span_data['circuit_info'] = circuits
+                if self.SAVE_TO_FILE:
+                    f = open('circuitdata.json', 'a+')
+                    current_time = time.localtime()
+                    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+                    f.write('\n\v'+time_string)                    
+                    f.write(str(json.dumps( circuits, indent=4, separators=(',', ': '))))
+                    f.close()
             else:
                 self.span_data['circuit_info'] =  None
             return(code )
@@ -93,7 +120,10 @@ class SpanAccess(object):
             self.update_Accum_EnergyBreaker(breaker_id)
 
         if save_to_file:
-            f = open(str(self.IP_address)+'.json', 'w')
+            f = open(str(self.IP_address)+'.json', 'a+')
+            current_time = time.localtime()
+            time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+            f.write('\n\v'+time_string)            
             f.write(str(json.dumps( self.accum_data, indent=4, separators=(',', ': '))))
             f.close()
             f = open(str(self.IP_address)+'.cvs', 'w')

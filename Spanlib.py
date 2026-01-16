@@ -141,6 +141,9 @@ class SpanAccess(object):
             hourSec = 3600 # 60*60
             daySec = 86400 # 60*60*24
             #logging.debug(f'update_Accum_Energy {breaker_id}')
+            update_time = self.span_data['circuit_info'][breaker_id].get('energyAccumUpdateTimeS')
+            produced_energy = self.span_data['circuit_info'][breaker_id].get('producedEnergyWh')
+            consumed_energy = self.span_data['circuit_info'][breaker_id].get('consumedEnergyWh')
         except KeyError as e:
             update_time = time.time()
             produced_energy = 0 

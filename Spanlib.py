@@ -111,9 +111,6 @@ class SpanAccess(object):
             hourSec = 3600 # 60*60
             daySec = 86400 # 60*60*24
             #logging.debug(f'update_Accum_Energy {breaker_id}')
-            update_time = self.span_data['circuit_info'][breaker_id]['energyAccumUpdateTimeS']
-            produced_energy = self.span_data['circuit_info'][breaker_id]['producedEnergyWh']
-            consumed_energy = self.span_data['circuit_info'][breaker_id]['consumedEnergyWh']
         except KeyError as e:
             update_time = time.time()
             produced_energy = 0 
@@ -132,7 +129,7 @@ class SpanAccess(object):
         t_24hour = update_time
         prod_1_hour = produced_energy
         cons_1_hour = consumed_energy
-        prod_24_hour =produced_energy
+        prod_24_hour = produced_energy
         cons_24_hour = consumed_energy
         hour_ok = False
         day_ok = False
@@ -152,7 +149,7 @@ class SpanAccess(object):
                     prod_24_hour = self.accum_data[breaker_id][saved_time]['producedWh']
                     cons_24_hour = self.accum_data[breaker_id][saved_time]['consumedWh']
         except KeyError as e:
-            logging.debug(f'ERROR UPDATE ACCUM ENERY {e}')
+            logging.error(f'ERROR UPDATE ACCUM ENERY {e}')
         try:
             delete_list = []
             #logging.debug(f'start delete: {int(time.time())} - {self.accum_data[breaker_id]}')

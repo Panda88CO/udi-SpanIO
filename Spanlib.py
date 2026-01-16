@@ -130,20 +130,20 @@ class SpanAccess(object):
             f.write('breaker, update_time,consumedWh,producedWh\n')
             for breaker in self.accum_data:
                 for data_time  in self.accum_data[breaker]:
-                    f.write(str(breaker)+','+str(data_time)+','+str(self.accum_data[breaker][data_time]['consumedWh'])+','+str(self.accum_data[breaker][data_time]['producedWh'])+'\n')
+                    f.write(str(breaker)+','+str(data_time)+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('consumedWh'))+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('producedWh'))+'\n')
             f.close()
             
 
 
     def update_Accum_EnergyBreaker(self, breaker_id ):
         try:
-            logging.debug('update_Accum_EnergyBreaker - begin {} {}'.format(breaker_id,json.dumps( self.span_data['circuit_info'], indent=4, separators=(',', ': ') )))        
+            logging.debug('update_Accum_EnergyBreaker - begin {} {}'.format(breaker_id,json.dumps( self.span_data.get('circuit_info', {}), indent=4, separators=(',', ': ') )))        
             hourSec = 3600 # 60*60
             daySec = 86400 # 60*60*24
             #logging.debug(f'update_Accum_Energy {breaker_id}')
-            update_time = self.span_data['circuit_info'][breaker_id].get('energyAccumUpdateTimeS')
-            produced_energy = self.span_data['circuit_info'][breaker_id].get('producedEnergyWh')
-            consumed_energy = self.span_data['circuit_info'][breaker_id].get('consumedEnergyWh')
+            update_time = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('energyAccumUpdateTimeS')
+            produced_energy = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('producedEnergyWh')
+            consumed_energy = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('consumedEnergyWh')
         except KeyError as e:
             update_time = time.time()
             produced_energy = 0 
@@ -175,12 +175,12 @@ class SpanAccess(object):
                     day_ok = True
                 if (abs(saved_time - time_1_hour) < abs(t_1hour-time_1_hour)):
                     t_1hour = saved_time
-                    prod_1_hour = self.accum_data[breaker_id][saved_time]['producedWh']
-                    cons_1_hour = self.accum_data[breaker_id][saved_time]['consumedWh']
+                    prod_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
+                    cons_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
                 if (abs(saved_time - time_24_hour) < abs(t_24hour-time_24_hour)):
                     t_24hour = saved_time
-                    prod_24_hour = self.accum_data[breaker_id][saved_time]['producedWh']
-                    cons_24_hour = self.accum_data[breaker_id][saved_time]['consumedWh']
+                    prod_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
+                    cons_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
         except KeyError as e:
             logging.error(f'ERROR UPDATE ACCUM ENERY {e}')
         try:
@@ -222,14 +222,12 @@ class SpanAccess(object):
             
     def get1HourAverage(self, breaker_id):
         logging.debug(f'get1HourAverage {breaker_id}')
-        #logging.debug('{} prod : {}, cons {}'.format(breaker_id, self.span_data['circuit_info'][breaker_id]['prod_1hour'], self.span_data['circuit_info'][breaker_id]['cons_1hour']))
-        return(self.span_data['circuit_info'][breaker_id]['prod_1hour'], self.span_data['circuit_info'][breaker_id]['cons_1hour'] )
+        #logging.debug('{} prod : {}, cons {}'.format(breaker_id, self.span_data['circuit_info'][breaker_id]['prod_1hour'], self.span_data['circuit_info'][breaker_id].get('cons_1hour')))
+        return(self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('prod_1hour'), self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('cons_1hour') )
 
     def get24HourAverage(self, breaker_id):
         logging.debug(f'get24HourAverage {breaker_id}')
-        return(self.span_data['circuit_info'][breaker_id]['prod_24hour'], self.span_data['circuit_info'][breaker_id]['cons_24hour'] )
-
-
+        return(self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('prod_24hour'), self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('cons_24hour') )
     def update_panel_breaker_info(self, breaker_id):
         try:
             code, breaker_info = self.getSpanBreakerInfo(breaker_id)
@@ -249,30 +247,30 @@ class SpanAccess(object):
         #self.update_panel_status()
         #logging.debug('panel status {}'.format(self.span_data['status']))
         self.update_panel_info()
-        logging.debug('panel info {}'.format(self.span_data['panel_info']))
+        logging.debug('panel info {}'.format(self.span_data.get('panel_info')))
         self.update_battery_info()
-        logging.debug('battery info {}'.format(self.span_data['battery_info']))
+        logging.debug('battery info {}'.format(self.span_data.get('battery_info')))
         #self.update_circuit_info()
-        #logging.debug('circuit info {}'.format(self.span_data['circuit_info']))        
+        #logging.debug('circuit info {}'.format(self.span_data.get('circuit_info')))        
         self.update_Accum_Energy(None, True)
 
 
     def update_span_data(self):
         logging.debug(f'update_span_data ({self.IP_address})')
         self.update_panel_status()
-        logging.debug('panel status {}'.format(self.span_data['status']))
+        logging.debug('panel status {}'.format(self.span_data.get('status')))
         self.update_panel_info()
-        logging.debug('panel info {}'.format(self.span_data['panel_info']))
+        logging.debug('panel info {}'.format(self.span_data.get('panel_info')))
         self.update_battery_info()
-        logging.debug('battery info {}'.format(self.span_data['battery_info']))
+        logging.debug('battery info {}'.format(self.span_data.get('battery_info')))
         self.update_circuit_info()
-        logging.debug('circuit info {}'.format(self.span_data['circuit_info']))        
+        logging.debug('circuit info {}'.format(self.span_data.get('circuit_info')))        
         self.update_Accum_Energy(None, True)
 
     def get_panel_door_state(self):
         logging.debug('get_panel_door_state')
         try:
-            return(self.span_data['status']['system']['doorState'])
+            return(self.span_data.get('status', {}).get('system', {}).get('doorState'))
         except KeyError as e:
             return(None)
         
@@ -281,16 +279,16 @@ class SpanAccess(object):
         logging.debug('get_battery_percentage')
         #logging.debug('data {}'.format(self.span_data['battery_info']))
         try:
-            return(self.span_data['battery_info']['soe']['percentage'])
+            return(self.span_data.get('battery_info', {}).get('soe', {}).get('percentage'))
         except KeyError as e:
             return(None)
 
 
     def get_main_panel_breaker_state(self):
         logging.debug('get_main_panel_breaker_state')
-        #logging.debug('data {}'.format(self.span_data['panel_info']))
+        #logging.debug('data {}'.format(self.span_data.get('panel_info')))
         try:
-            return(self.span_data['panel_info']['mainRelayState'])
+            return(self.span_data.get('panel_info', {}).get('mainRelayState'))
         except KeyError as e:
             return(None)    
 
@@ -299,16 +297,16 @@ class SpanAccess(object):
         logging.debug('get_grid_state')
         #logging.debug('data {}'.format(self.span_data['panel_info']))
         try:
-            return(self.span_data['panel_info']['dsmGridState'])
+            return(self.span_data.get('panel_info', {}).get('dsmGridState'))
         except KeyError as e:
             return(None)    
 
 
     def get_dms_state(self):        
         logging.debug('get_dms_state')
-        logging.debug('data {}'.format(self.span_data['panel_info']))
+        logging.debug('data {}'.format(self.span_data.get('panel_info')))
         try:
-            return(self.span_data['panel_info']['dsmState'])
+            return(self.span_data.get('panel_info', {}).get('dsmState'))
         
         except KeyError as e:
             return(None)    
@@ -333,36 +331,36 @@ class SpanAccess(object):
 
     def get_feedthrough_power(self):              
         logging.debug('get_feedthrough_power')
-        #logging.debug('data {}'.format(self.span_data['panel_info']))
+        #logging.debug('data {}'.format(self.span_data.get('panel_info')))
         try:
-            return(self.span_data['panel_info']['feedthroughPowerW'] )
+            return(self.span_data.get('panel_info', {}).get('feedthroughPowerW') )
         except KeyError as e:
             return(None)    
 
 
     def get_breaker_state(self, breaker_id):
         logging.debug(f'get_breaker_state {breaker_id}')
-        #logging.debug('data {}'.format(self.span_data['circuit_info'][breaker_id]))
+        #logging.debug('data {}'.format(self.span_data.get('circuit_info', {}).get(breaker_id)))
         try:
-            return(self.span_data['circuit_info'][breaker_id]['relayState'] )
+            return(self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('relayState') )
         except KeyError as e:
             return(None)    
 
     def get_breaker_priority(self, breaker_id):
         logging.debug(f'get_breaker_priority {breaker_id}')
-        #logging.debug('data {}'.format(self.span_data['circuit_info'][breaker_id]))
+        #logging.debug('data {}'.format(self.span_data.get('circuit_info', {}).get(breaker_id)))
         try:
-            return(self.span_data['circuit_info'][breaker_id]['priority'] )
+            return(self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('priority') )
         except KeyError as e:
             return None    
 
 
     def get_breaker_instant_power(self, breaker_id):
         logging.debug(f'get_breaker_instant_power {breaker_id}')
-        #logging.debug('data {}'.format(self.span_data['circuit_info'][breaker_id]))
+        #logging.debug('data {}'.format(self.span_data.get('circuit_info', {}).get(breaker_id)  ))
         try:
-            pwr = self.span_data['circuit_info'][breaker_id]['instantPowerW']
-            meas_time = int(time.time() -self.span_data['circuit_info'][breaker_id]['instantPowerUpdateTimeS'])
+            pwr = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('instantPowerW')
+            meas_time = int(time.time() -self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('instantPowerUpdateTimeS'))
             return pwr,  meas_time
         except Exception as e:
             return None, None    
@@ -370,9 +368,9 @@ class SpanAccess(object):
     def get_breaker_energy_info(self, breaker_id):
         logging.debug(f'get_breaker_energy_info {breaker_id}')
         try:
-            produced_energy =  self.span_data['circuit_info'][breaker_id]['producedEnergyWh']
-            consumed_energy = self.span_data['circuit_info'][breaker_id]['consumedEnergyWh'] 
-            meas_time = self.span_data['circuit_info'][breaker_id]['energyAccumUpdateTimeS']
+            produced_energy =  self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('producedEnergyWh')
+            consumed_energy = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('consumedEnergyWh') 
+            meas_time = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('energyAccumUpdateTimeS')
             #logging.debug(f'{breaker_id} get_breaker_energy_info {produced_energy} {consumed_energy} {delay_time}')
             return produced_energy, consumed_energy, meas_time
         except Exception as e:

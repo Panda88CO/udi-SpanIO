@@ -119,19 +119,19 @@ class SpanAccess(object):
         else:
             self.update_Accum_EnergyBreaker(breaker_id)
 
-        if save_to_file:
-            f = open(str(self.IP_address)+'.json', 'a+')
-            current_time = time.localtime()
-            time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
-            f.write('\n\v'+time_string)            
-            f.write(str(json.dumps( self.accum_data, indent=4, separators=(',', ': '))))
-            f.close()
-            f = open(str(self.IP_address)+'.cvs', 'w')
-            f.write('breaker, update_time,consumedWh,producedWh\n')
-            for breaker in self.accum_data:
-                for data_time  in self.accum_data[breaker]:
-                    f.write(str(breaker)+','+str(data_time)+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('consumedWh'))+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('producedWh'))+'\n')
-            f.close()
+        #if save_to_file:
+        #    f = open(str(self.IP_address)+'.json', 'a+')
+        #    current_time = time.localtime()
+        #    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+        #    f.write('\n\v'+time_string)            
+        #    f.write(str(json.dumps( self.accum_data, indent=4, separators=(',', ': '))))
+        #    f.close()
+        #    f = open(str(self.IP_address)+'.cvs', 'w')
+        #    f.write('breaker, update_time,consumedWh,producedWh\n')
+        #    for breaker in self.accum_data:
+        #        for data_time  in self.accum_data[breaker]:
+        #            f.write(str(breaker)+','+str(data_time)+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('consumedWh'))+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('producedWh'))+'\n')
+        #    f.close()
             
 
 

@@ -57,7 +57,7 @@
          <st id="ST" editor="OPENCLOSE" />
          <st id="GV1" editor="PRIORITY" />
          <st id="GV2" editor="W" />
-         <st id="GV4" editor="SECS" />
+         <st id="GV4" editor="UTIME" />
 
          <st id="GV5" editor="WH" />
          <st id="GV6" editor="WH" />

@@ -152,16 +152,16 @@ def period2ISY(self, period):
     else:
         return (99) 
 
-def my_setDriver(self, key, value, Unit=None):
+def my_setDriver(self, key, value, Unit=None, force = None):
     logging.debug('my_setDriver : {} {} {}'.format(key, value, Unit))
     if value == None:
         logging.debug('None value passed = seting 99, UOM 25')
-        self.node.setDriver(key, 99, True, True, 25)
+        self.node.setDriver(key, 99, True, force!=None, 25)
     else:
         if Unit:
-            self.node.setDriver(key, value, True, True, Unit)
+            self.node.setDriver(key, value, True, force!=None, Unit)
         else:
-            self.node.setDriver(key, value, True, True)
+            self.node.setDriver(key, value, True, force!=None)
 
 
 def send_rel_temp_to_isy(self, temperature, stateVar):

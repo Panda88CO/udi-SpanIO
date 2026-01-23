@@ -54,8 +54,12 @@
      <range  uom="44" min="0" max="720" prec="2" />
       <range uom="25" subset="98-99" nls="error" />
   </editor>
-   <editor id = "SECS" > 
-     <range  uom="57" min="0" max="7200" prec="2" />
+   <editor id = "UTIME" > 
+     <range  uom="151" min="0" max="5000000000" prec="0" />
+      <range uom="25" subset="98-99" nls="error" />
+  </editor>
+     <editor id = "SEC" > 
+     <range  uom="57" min="0" max="7200" prec="0" />
       <range uom="25" subset="98-99" nls="error" />
   </editor>
   <editor id = "PERCENT" > 

@@ -28,7 +28,7 @@ class SpanAccess(object):
         #self.REGISTER    = '/register'
         self.span_data = {}
         self.accum_data = {}
-        self.SAVE_TO_FILE = True
+        self.SAVE_TO_FILE = False
 
     def update_panel_status(self):
         try:

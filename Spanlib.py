@@ -3,6 +3,7 @@
 import requests
 import time
 import json
+import os
 #from datetime import datetime, timezone
 
 try:
@@ -29,6 +30,7 @@ class SpanAccess(object):
         self.span_data = {}
         self.accum_data = {}
         self.SAVE_TO_FILE = False
+        self.load_accum_data()
 
     def update_panel_status(self):
         try:
@@ -108,56 +110,71 @@ class SpanAccess(object):
             logging.error(f'EXCEPTION: update_battery_info: {e}')
             return(None)
 
+    def load_accum_data(self):
+        filename = f'accum_data_{self.IP_address}.json'
+        try:
+            if os.path.exists(filename):
+                with open(filename, 'r') as f:
+                    data = json.load(f)
+                    self.accum_data = {}
+                    for breaker_id, records in data.items():
+                        self.accum_data[breaker_id] = {}
+                        for k, v in records.items():
+                            t = int(k) if str(k).isdigit() else k
+                            self.accum_data[breaker_id][t] = v
+                logging.info(f'Loaded accum_data for {self.IP_address} from {filename} ({len(self.accum_data)} breakers)')
+        except Exception as e:
+            logging.error(f'Error loading accum_data from {filename}: {e}')
+
+    def save_accum_data(self):
+        filename = f'accum_data_{self.IP_address}.json'
+        try:
+            if self.accum_data:
+                with open(filename, 'w') as f:
+                    json.dump(self.accum_data, f, indent=2)
+                logging.debug(f'Saved accum_data for {self.IP_address} to {filename}')
+        except Exception as e:
+            logging.error(f'Error saving accum_data to {filename}: {e}')
+
     def update_Accum_Energy(self, breaker_id = None, save_to_file = False):
         logging.debug(f'update_Accum_Energy {breaker_id}')
         if self.span_data.get('circuit_info') is None:
             return
 
         if breaker_id == None:
-            for breaker_id in self.span_data['circuit_info']:
-                self.update_Accum_EnergyBreaker(breaker_id)
+            for b_id in self.span_data['circuit_info']:
+                self.update_Accum_EnergyBreaker(b_id)
         else:
             self.update_Accum_EnergyBreaker(breaker_id)
 
-        #if save_to_file:
-        #    f = open(str(self.IP_address)+'.json', 'a+')
-        #    current_time = time.localtime()
-        #    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
-        #    f.write('\n\v'+time_string)            
-        #    f.write(str(json.dumps( self.accum_data, indent=4, separators=(',', ': '))))
-        #    f.close()
-        #    f = open(str(self.IP_address)+'.cvs', 'w')
-        #    f.write('breaker, update_time,consumedWh,producedWh\n')
-        #    for breaker in self.accum_data:
-        #        for data_time  in self.accum_data[breaker]:
-        #            f.write(str(breaker)+','+str(data_time)+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('consumedWh'))+','+str(self.accum_data.get(breaker, {}).get(data_time, {}).get('producedWh'))+'\n')
-        #    f.close()
-            
-
+        self.save_accum_data()
 
     def update_Accum_EnergyBreaker(self, breaker_id ):
+        hourSec = 3600 # 60*60
+        daySec = 86400 # 60*60*24
         try:
-            logging.debug('update_Accum_EnergyBreaker - begin {} {}'.format(breaker_id,json.dumps( self.span_data.get('circuit_info', {}), indent=4, separators=(',', ': ') )))        
-            hourSec = 3600 # 60*60
-            daySec = 86400 # 60*60*24
-            #logging.debug(f'update_Accum_Energy {breaker_id}')
             update_time = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('energyAccumUpdateTimeS')
             produced_energy = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('producedEnergyWh')
             consumed_energy = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('consumedEnergyWh')
-        except KeyError as e:
-            update_time = time.time()
-            produced_energy = 0 
-            consumed_energy =  0
-            logging.debug('update_Accum_EnergyBreaker - key error {} {}'.format(breaker_id,json.dumps( self.span_data['circuit_info'], indent=4, separators=(',', ': ') )))        
+        except Exception as e:
+            update_time = int(time.time())
+            produced_energy = 0.0
+            consumed_energy = 0.0
+            logging.debug(f'update_Accum_EnergyBreaker - error getting energy for {breaker_id}: {e}')
+
+        if update_time is None:
+            update_time = int(time.time())
+        if produced_energy is None:
+            produced_energy = 0.0
+        if consumed_energy is None:
+            consumed_energy = 0.0
 
         if breaker_id not in self.accum_data:
             self.accum_data[breaker_id] = {}
 
-        # check if time is not update - only update if time changed  - Need to add 
-        
-        self.accum_data[breaker_id][update_time]={'update_time':update_time,'producedWh':produced_energy, 'consumedWh':consumed_energy}
-        time_1_hour = update_time - hourSec #60*60
-        time_24_hour = update_time - daySec #60*60*24
+        self.accum_data[breaker_id][update_time] = {'update_time': update_time, 'producedWh': produced_energy, 'consumedWh': consumed_energy}
+        time_1_hour = update_time - hourSec
+        time_24_hour = update_time - daySec
         t_1hour = update_time
         t_24hour = update_time
         prod_1_hour = produced_energy
@@ -168,51 +185,45 @@ class SpanAccess(object):
         day_ok = False
         try:
             for saved_time in self.accum_data[breaker_id]:
-
                 if saved_time <= time_1_hour:
                     hour_ok = True
                 if saved_time <= time_24_hour:
                     day_ok = True
-                if (abs(saved_time - time_1_hour) < abs(t_1hour-time_1_hour)):
+                if (abs(saved_time - time_1_hour) < abs(t_1hour - time_1_hour)):
                     t_1hour = saved_time
                     prod_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
                     cons_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
-                if (abs(saved_time - time_24_hour) < abs(t_24hour-time_24_hour)):
+                if (abs(saved_time - time_24_hour) < abs(t_24hour - time_24_hour)):
                     t_24hour = saved_time
                     prod_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
                     cons_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
-        except KeyError as e:
-            logging.error(f'ERROR UPDATE ACCUM ENERY {e}')
+        except Exception as e:
+            logging.error(f'ERROR UPDATE ACCUM ENERGY {e}')
+
         try:
-            delete_list = []
-            #logging.debug(f'start delete: {int(time.time())} - {self.accum_data[breaker_id]}')
-            for saved_time in self.accum_data[breaker_id]:
-                logging.debug(f'update time {saved_time}')
-                if saved_time < t_24hour:
-                    delete_list.append(self.accum_data[breaker_id][saved_time])
-            #logging.debug(f'deletelist: {delete_list}')
-            for indx, meas_data in enumerate(delete_list):
-                #logging.debug(f'remove befor1 {meas_data}, {int(time.time())-daySec} ')
-                #logging.debug('remove before2 {}'.format(meas_data['update_time']))
-                del self.accum_data[breaker_id][meas_data['update_time']]
-                logging.debug(f'remove meas {meas_data} ')
+            if day_ok:
+                delete_list = []
+                for saved_time in list(self.accum_data[breaker_id].keys()):
+                    if saved_time < t_24hour:
+                        delete_list.append(saved_time)
+                for st in delete_list:
+                    del self.accum_data[breaker_id][st]
         except Exception as e:
             logging.error(f'Exception delete data {e}')
-        #logging.debug(f'size of accum_data {len(self.accum_data[breaker_id])}')
-
 
         try:
-            if  update_time != t_1hour and hour_ok:
-                self.span_data['circuit_info'][breaker_id]['prod_1hour'] = (produced_energy-prod_1_hour)*3600/(update_time-t_1hour)
-                self.span_data['circuit_info'][breaker_id]['cons_1hour'] = (consumed_energy-cons_1_hour)*3600/(update_time-t_1hour)
-                #logging.debug(f'{breaker_id} 1 hour average: prod {produced_energy} - {prod_1_hour} - cons {consumed_energy} - {cons_1_hour} - time {update_time-t_1hour}')
+            dt_1h = update_time - t_1hour
+            if (dt_1h >= 60 or (dt_1h > 0 and hour_ok)) and prod_1_hour is not None and cons_1_hour is not None:
+                self.span_data['circuit_info'][breaker_id]['prod_1hour'] = (produced_energy - prod_1_hour) * 3600 / dt_1h
+                self.span_data['circuit_info'][breaker_id]['cons_1hour'] = (consumed_energy - cons_1_hour) * 3600 / dt_1h
             else:
                 self.span_data['circuit_info'][breaker_id]['prod_1hour'] = None
                 self.span_data['circuit_info'][breaker_id]['cons_1hour'] = None
-            if  update_time != t_24hour and day_ok:
-                self.span_data['circuit_info'][breaker_id]['prod_24hour'] = (produced_energy-prod_24_hour)*24*3600/(update_time-t_24hour)
-                self.span_data['circuit_info'][breaker_id]['cons_24hour'] = (consumed_energy-cons_24_hour)*24*3600/(update_time-t_24hour)
-                #logging.debug(f'{breaker_id}  24 hour average: prod {produced_energy} - {prod_24_hour} - cons {consumed_energy} - {cons_24_hour} - time {update_time-t_24hour}')
+
+            dt_24h = update_time - t_24hour
+            if (dt_24h >= 60 or (dt_24h > 0 and day_ok)) and prod_24_hour is not None and cons_24_hour is not None:
+                self.span_data['circuit_info'][breaker_id]['prod_24hour'] = (produced_energy - prod_24_hour) * 24 * 3600 / dt_24h
+                self.span_data['circuit_info'][breaker_id]['cons_24hour'] = (consumed_energy - cons_24_hour) * 24 * 3600 / dt_24h
             else:
                 self.span_data['circuit_info'][breaker_id]['prod_24hour'] = None
                 self.span_data['circuit_info'][breaker_id]['cons_24hour'] = None

@@ -1,11 +1,12 @@
 <editors> 
-  <editor id = "UPDN" > 
-     <range  uom="25" subset="0-1" nls="UPDN" />
+  <editor id="UPDN"> 
+     <range uom="25" subset="0-1" nls="UPDN" />
   </editor>
 
-  <editor id = "CON" > 
-     <range  uom="25" subset="0-1" nls="CON" />
+  <editor id="CONNECTED"> 
+     <range uom="25" subset="0-1" nls="CONNECTED" />
   </editor>
+
   <editor id = "NBRSPAN" > 
      <range  uom="56" min="1" max="9" prec="0"/>
   </editor>
@@ -58,7 +59,7 @@
      <range  uom="151" min="0" max="5000000000" prec="0" />
       <range uom="25" subset="98-99" nls="error" />
   </editor>
-     <editor id = "SEC" > 
+     <editor id = "SECS" > 
      <range  uom="57" min="0" max="7200" prec="0" />
       <range uom="25" subset="98-99" nls="error" />
   </editor>

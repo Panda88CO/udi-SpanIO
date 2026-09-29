@@ -2,7 +2,7 @@
    <nodeDef id="controller" nls="nlscontroller">
       <editors />
       <sts>
-         <st id="ST"  editor="CON" />
+         <st id="ST" editor="CONNECTED" />
          <st id="GV1" editor="NBRSPAN" />
       </sts>
       <cmds>

@@ -3,19 +3,11 @@ ND-controller-ICON = EnergyMonitor
 
 CMD-nlscontroller-UPDATE-NAME = Update System Data
 ST-nlscontroller-ST-NAME = Node Status
-UPDN-0 = Down
-UPDN-1 = Up
 ST-nlscontroller-GV1-NAME = Nbr Span Panels
 
 ND-spanpanel-NAME = SPAN Panel Status
 ND-spanpanel-ICON = EnergyMonitor
 ST-nlsspanpanel-ST-NAME = Main Panel Breaker State
-CON-0 = Not Connected
-CON-1 = Connected
-ST-nlsspanpanel-GV0-NAME = Panel Door
-OPENCLOSE-0 = Closed
-OPENCLOSE-1 = Open
-OPENCLOSE-99 = Unknown
 ST-nlsspanpanel-GV0-NAME = Panel Door State
 ST-nlsspanpanel-GV1-NAME = Instant Panel Power
 ST-nlsspanpanel-GV2-NAME = Instant Feedthrough Power
@@ -42,6 +34,13 @@ CMD-nlsspancircuit-OPENCLOSE-NAME = Set State
 CMDP-openclose-NAME = Breaker State
 CMD-nlsspancircuit-PRIORITY-NAME = Set Priority
 CMDP-priority-NAME = Breaker Priority
+
+UPDN-0 = Down
+UPDN-1 = Up
+
+CONNECTED-0 = Not Connected
+CONNECTED-1 = Connected
+
 PRIORITY-0 = Must Have
 PRIORITY-1 = Nice to Have
 PRIORITY-2 = Not Essential

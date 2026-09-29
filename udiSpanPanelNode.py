@@ -108,6 +108,8 @@ class udiSpanPanelNode(udi_interface.Node):
 
     def stop(self):
         logging.debug('stop - Cleaning up')
+        if hasattr(self, 'span_panel') and self.span_panel:
+            self.span_panel.save_accum_data()
     
     def node_ready(self):
         return(self.node_ok)

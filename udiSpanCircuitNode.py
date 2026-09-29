@@ -41,9 +41,8 @@ class udiSpanCircuitNode(udi_interface.Node):
     def start(self):   
         logging.debug(f'Start Span Circuit node {self.name}')
 
-        self.circuit_data = self.span_panel.getSpanBreakerInfo(self.circuit )
+        self.update_data()
         self.updateISYdrivers()
-        
         
         self.node_ok = True
 
@@ -106,11 +105,11 @@ class udiSpanCircuitNode(udi_interface.Node):
             if (0 == priority):
                 res =  self.span_panel.set_breaker_priority(self.circuit, 'MUST_HAVE')
             elif (1 == priority):
-                res =  self.span_panel.set_breaker_priority(self.circuit, 'NICE _O_HAVE')
+                res =  self.span_panel.set_breaker_priority(self.circuit, 'NICE_TO_HAVE')
             else:
                 res = self.span_panel.set_breaker_priority(self.circuit, 'NOT_ESSENTIAL')
             if res:
-                self.my_setDriver('ST', priority)   
+                self.my_setDriver('GV1', priority)   
 
 
 

@@ -7,9 +7,9 @@ ST-nlscontroller-GV1-NAME = Nbr Span Panels
 
 ND-spanpanel-NAME = SPAN Panel Status
 ND-spanpanel-ICON = EnergyMonitor
-ST-nlsspanpanel-ST-NAME = Main Panel Breaker State
+ST-nlsspanpanel-ST-NAME = Instant Panel Power
 ST-nlsspanpanel-GV0-NAME = Panel Door State
-ST-nlsspanpanel-GV1-NAME = Instant Panel Power
+ST-nlsspanpanel-GV1-NAME = Main Panel Breaker State
 ST-nlsspanpanel-GV2-NAME = Instant Feedthrough Power
 ST-nlsspanpanel-GV3-NAME = Grid State
 ST-nlsspanpanel-GV4-NAME = Grid Status
@@ -18,9 +18,9 @@ CMD-nlsspanpanel-UPDATE-NAME = Update Panels Data
 
 ND-spancircuit-NAME = SPAN Breaker Status
 ND-spancircuit-ICON = EnergyMonitor
-ST-nlsspancircuit-ST-NAME = Circuit (relay) State
+ST-nlsspancircuit-ST-NAME = Instantaneous Power
 ST-nlsspancircuit-GV1-NAME = Circuit (relay) Priority
-ST-nlsspancircuit-GV2-NAME = Instantaneous Power
+ST-nlsspancircuit-GV2-NAME = Circuit (relay) State
 ST-nlsspancircuit-GV4-NAME = Power Measurement Time
 ST-nlsspancircuit-GV5-NAME = Imported Energy
 ST-nlsspancircuit-GV6-NAME = Exported Energy

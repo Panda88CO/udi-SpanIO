@@ -19,27 +19,13 @@
    <nodeDef id="spanpanel" nls="nlsspanpanel">
       <editors />
       <sts>
-         <st id="ST" editor= "OPENCLOSE" />      
+         <st id="ST" editor="W" />      
          <st id="GV0" editor="OPENCLOSE" /> 
-         <st id="GV1" editor="W" />
+         <st id="GV1" editor="OPENCLOSE" />
          <st id="GV2" editor="W" />
          <st id="GV3" editor="GRIDSTATE" />
          <st id="GV4" editor="GRIDSTATUS" />         
-         <!--<st id="GV5" editor="KWH" />
-         <st id="GV6" editor="KWH" />-->
          <st id="GV7" editor="PERCENT" />
-
-         <!--
-         <st id="ST" editor="OPENCLOSE" />  Main Breaker State 
-         <st id="GV0" editor="OPENCLOSE" /> Door State
-         <st id="GV1" editor="KW" />  Instant power
-         <st id="GV2" editor="KW" />  Feed through
-         <st id="GV3" editor="GRIDSTATE" />
-         <st id="GV4" editor="GRIDSTATUS" />         
-         <st id="GV5" editor="KWH" />  Energy/Hour
-         <st id="GV6" editor="KWH" />  Enerrgy/day
-         <st id="GV7" editor="PERCENT" /> Battery
-         -->
       </sts>
       <cmds>
          <sends>
@@ -54,9 +40,9 @@
    <nodeDef id="spancircuit" nls="nlsspancircuit">
       <editors />
       <sts>
-         <st id="ST" editor="OPENCLOSE" />
+         <st id="ST" editor="W" />
          <st id="GV1" editor="PRIORITY" />
-         <st id="GV2" editor="W" />
+         <st id="GV2" editor="OPENCLOSE" />
          <st id="GV4" editor="UTIME" />
 
          <st id="GV5" editor="KWH" />
@@ -64,20 +50,6 @@
          <st id="GV7" editor="WH" />
          <st id="GV8" editor="WH" />         
          <st id="GV9" editor="UTIME" />
-
-
-         <!--      
-         <st id="ST" editor="OPENCLOSE" /> breaker
-         <st id="GV1" editor="PRIORITY" /> priority
-         <st id="GV2" editor="KW" /> inst Power
-
-         <st id="GV4" editor="SECS" /> Time sinse result (sec)
-         <st id="GV5" editor="KWH" /> Imported Energy
-         <st id="GV6" editor="KWH" />  Exported energy
-         <st id="GV7" editor="KWH" /> energy / hour
-         <st id="GV8" editor="KWH" />  energy / day       
-         <st id="GV9" editor="SECS" />  Time sinse result (sec)
-         -->
       </sts>
       <cmds>
          <sends>
@@ -85,11 +57,8 @@
          <accepts>
             <cmd id="UPDATE" /> 
             <cmd id="OPENCLOSE" > 
-               <p id="openclose" editor="SET_OPENCLOSE" init="ST" />                
+               <p id="openclose" editor="SET_OPENCLOSE" init="GV2" />                
              </cmd >
-            <!--<cmd id="PRIORITY" > 
-               <p id="priority" editor="SET_PRIORITY" init="GV1" />                
-             </cmd > -->
          </accepts>
       </cmds>
    </nodeDef> 

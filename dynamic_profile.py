@@ -267,9 +267,9 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
             "name": "SPAN Panel Status",
             "icon": "EnergyMonitor",
             "properties": [
-                {"id": "ST", "editor": "OPENCLOSE", "name": "Main Panel Breaker State"},
+                {"id": "ST", "editor": "W", "name": "Instant Panel Power"},
                 {"id": "GV0", "editor": "OPENCLOSE", "name": "Panel Door State"},
-                {"id": "GV1", "editor": "W", "name": "Instant Panel Power"},
+                {"id": "GV1", "editor": "OPENCLOSE", "name": "Main Panel Breaker State"},
                 {"id": "GV2", "editor": "W", "name": "Instant Feedthrough Power"},
                 {"id": "GV3", "editor": "GRIDSTATE", "name": "Grid State"},
                 {"id": "GV4", "editor": "GRIDSTATUS", "name": "Grid Status"},
@@ -288,9 +288,9 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
             "name": "SPAN Breaker Status",
             "icon": "EnergyMonitor",
             "properties": [
-                {"id": "ST", "editor": "OPENCLOSE", "name": "Circuit (relay) State"},
+                {"id": "ST", "editor": "W", "name": "Instantaneous Power"},
                 {"id": "GV1", "editor": "PRIORITY", "name": "Circuit (relay) Priority"},
-                {"id": "GV2", "editor": "W", "name": "Instantaneous Power"},
+                {"id": "GV2", "editor": "OPENCLOSE", "name": "Circuit (relay) State"},
                 {"id": "GV4", "editor": "UTIME", "name": "Power Measurement Time"},
                 {"id": "GV5", "editor": "KWH", "name": "Imported Energy"},
                 {"id": "GV6", "editor": "KWH", "name": "Exported Energy"},
@@ -310,7 +310,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
                                 "id": "openclose",
                                 "name": "Breaker State",
                                 "editor": "SET_OPENCLOSE",
-                                "init": "ST",
+                                "init": "GV2",
                             }
                         ],
                     },
@@ -321,7 +321,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
     ]
 
 
-def dynamic_profile_payload(version: str = "0.1.18") -> Dict[str, Any]:
+def dynamic_profile_payload(version: str = "0.1.19") -> Dict[str, Any]:
     return {
         "version": version,
         "delete": {

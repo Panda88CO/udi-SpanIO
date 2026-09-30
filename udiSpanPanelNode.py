@@ -123,10 +123,10 @@ class udiSpanPanelNode(udi_interface.Node):
     def updateISYdrivers(self):
         logging.debug('Span Panel updateISYdrivers')
         #logging.debug(f'data: {self.span_panel.span_data}')
-        self.my_setDriver('ST', self.openClose2ISY(self.span_panel.get_main_panel_breaker_state()), 25)
+        self.my_setDriver('ST', round(self.span_panel.get_instant_grid_power(), 1), 73)
         self.my_setDriver('GV0', self.openClose2ISY(self.span_panel.get_panel_door_state()), 25)
-        self.my_setDriver('GV1', round(self.span_panel.get_instant_grid_power(),1), 73)
-        self.my_setDriver('GV2', round(self.span_panel.get_feedthrough_power(),1), 73)
+        self.my_setDriver('GV1', self.openClose2ISY(self.span_panel.get_main_panel_breaker_state()), 25)
+        self.my_setDriver('GV2', round(self.span_panel.get_feedthrough_power(), 1), 73)
         self.my_setDriver('GV3', self.gridState2ISY(self.span_panel.get_grid_state()), 25)
         self.my_setDriver('GV4', self.gridStatus2ISY(self.span_panel.get_dms_state()), 25)
         if self.battery_backup:
@@ -148,9 +148,9 @@ class udiSpanPanelNode(udi_interface.Node):
                 }
  
     drivers = [
-            {'driver': 'ST', 'value': 99, 'uom': 25},  #online         
+            {'driver': 'ST', 'value': 0, 'uom': 73},         
             {'driver': 'GV0', 'value': 0, 'uom': 25},       
-            {'driver': 'GV1', 'value': 0, 'uom': 73},
+            {'driver': 'GV1', 'value': 99, 'uom': 25},
             {'driver': 'GV2', 'value': 0, 'uom': 73},  
             {'driver': 'GV3', 'value': 0, 'uom': 25}, 
             {'driver': 'GV4', 'value': 0, 'uom': 25},  

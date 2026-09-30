@@ -61,7 +61,6 @@ class SPANController(udi_interface.Node):
         self.poly.Notices.clear()
         self.nodeDefineDone = False
         self.longPollCountMissed = 0
-        self._update_dynamic_profile()
         self.poly.ready()
         logging.debug('Controller init DONE')        
         
@@ -76,32 +75,68 @@ class SPANController(udi_interface.Node):
         self.poly.subscribe(self.poly.START, self.start, 'controller')
         logging.debug('finish Init ')
         
-    def _update_dynamic_profile(self) -> None:
+    def _profiles_match(self, current_profile, expected_profile) -> bool:
+        if not isinstance(current_profile, dict) or not isinstance(expected_profile, dict):
+            return False
+        return all(
+            current_profile.get(k, []) == expected_profile.get(k, [])
+            for k in ("editors", "nodedefs", "linkdefs")
+        )
+
+    def _update_dynamic_profile(self, wait_response: bool = False) -> None:
         updater = getattr(self.poly, 'updateJsonProfile', None)
-        if callable(updater):
+        if not callable(updater):
+            logging.info('updateJsonProfile is not available on this interface; falling back to updateProfile')
             try:
-                updater(dynamic_profile_payload(), {'waitResponse': True})
-                logging.info('Dynamic profile updated successfully via PG3x updateJsonProfile')
-                if hasattr(self, 'Notices'):
-                    try:
-                        self.Notices.delete('profile')
-                    except Exception:
-                        pass
-                return
+                self.poly.updateProfile()
+            except Exception as e:
+                logging.warning(f'Static profile update failed or not supported: {e}')
+            return
+
+        payload = dynamic_profile_payload(VERSION)
+
+        getter = getattr(self.poly, 'getJsonProfile', None)
+        if callable(getter):
+            try:
+                current = getter({'waitResponse': False})
+                if self._profiles_match(current, payload):
+                    logging.info('Dynamic profile already up to date, skipping publish')
+                    return
             except Exception:
-                logging.exception('Dynamic profile update failed; attempting fallback')
-                if hasattr(self, 'Notices'):
-                    try:
-                        self.Notices['profile'] = 'Dynamic profile update failed. Falling back to static profile.'
-                    except Exception:
-                        pass
-        else:
-            logging.info('updateJsonProfile is not available on this interface; falling back to static profile')
+                try:
+                    current = getter()
+                    if self._profiles_match(current, payload):
+                        logging.info('Dynamic profile already up to date, skipping publish')
+                        return
+                except Exception as err:
+                    logging.warning(f'Unable to read existing profile: {err}')
 
         try:
-            self.poly.updateProfile()
+            updater(payload, {'waitResponse': wait_response})
+            logging.info('Dynamic profile updated successfully via PG3x updateJsonProfile')
+            if hasattr(self.poly, 'Notices') and hasattr(self.poly.Notices, 'delete'):
+                try:
+                    self.poly.Notices.delete('profile')
+                except Exception:
+                    pass
+        except TypeError:
+            try:
+                updater(payload)
+                logging.info('Dynamic profile updated successfully via PG3x updateJsonProfile (no options)')
+                if hasattr(self.poly, 'Notices') and hasattr(self.poly.Notices, 'delete'):
+                    try:
+                        self.poly.Notices.delete('profile')
+                    except Exception:
+                        pass
+            except Exception as e:
+                logging.exception(f'Dynamic profile publish failed: {e}')
         except Exception as e:
-            logging.warning(f'Static profile update failed or not supported: {e}')
+            logging.exception(f'Dynamic profile update failed: {e}')
+            if hasattr(self.poly, 'Notices') and hasattr(self.poly.Notices, '__setitem__'):
+                try:
+                    self.poly.Notices['profile'] = f'Dynamic profile update failed: {e}'
+                except Exception:
+                    pass
         
     
     def customDataHandler(self, Data):
@@ -209,6 +244,7 @@ class SPANController(udi_interface.Node):
             #logging.debug(' 1 2: {} {}'.format(self.customParam_done , self.config_done))
             time.sleep(1)
         #logging.debug('access {} {}'.format(self.local_access_enabled, self.cloud_access_enabled))
+        self._update_dynamic_profile()
         
         if 'uid' not in self.customData.keys():
             uid = self.random_string(16)

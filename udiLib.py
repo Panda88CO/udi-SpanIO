@@ -74,26 +74,62 @@ def maskToDays(self, daysValue):
     return(daysList)
 
 def openClose2ISY(self, state):
-    #logging.debug(f'openClose2ISY {state}')
-    if state in ['OPEN', 'CLOSED']:
-        if state == 'OPEN':
-            return(1)
-        else:
-            return(0)
+    logging.debug(f'openClose2ISY {state}')
+    if state is None:
+        return None
+    if isinstance(state, (int, float)):
+        return int(state) if state in [0, 1] else 99
+    s = str(state).strip().upper()
+    if s == 'OPEN':
+        return 1
+    elif s == 'CLOSED':
+        return 0
     else:
-        return(None)
-    
+        return 99
+
 def priority2ISY(self, state):
-    #logging.debug(f'priority2ISY {state}')
-    if state in ['MUST_HAVE', 'NICE_TO_HAVE', 'NOT_ESSENTIAL']:
-        if state == 'MUST_HAVE':
-            return(0)
-        elif state == 'NICE_TO_HAVE':
-            return(1)
-        else:
-            return(2)
+    logging.debug(f'priority2ISY {state}')
+    if state is None:
+        return None
+    if isinstance(state, (int, float)):
+        return int(state) if state in [0, 1, 2] else 99
+    s = str(state).strip().upper().replace(' ', '_')
+    if s == 'MUST_HAVE':
+        return 0
+    elif s == 'NICE_TO_HAVE':
+        return 1
+    elif s in ['NOT_ESSENTIAL', 'NON_ESSENTIAL']:
+        return 2
     else:
-        return(None)
+        return 99
+
+def gridState2ISY(self, state):
+    logging.debug(f'gridState2ISY {state}')
+    if state is None:
+        return None
+    if isinstance(state, (int, float)):
+        return int(state) if state in [0, 1] else 99
+    s = str(state).strip().upper()
+    if s in ['DSM_GRID_UP', 'GRID_UP', 'UP']:
+        return 0
+    elif s in ['DSM_GRID_DOWN', 'GRID_DOWN', 'DOWN']:
+        return 1
+    else:
+        return 99
+
+def gridStatus2ISY(self, status):
+    logging.debug(f'gridStatus2ISY {status}')
+    if status is None:
+        return None
+    if isinstance(status, (int, float)):
+        return int(status) if status in [0, 1] else 99
+    s = str(status).strip().upper()
+    if s in ['ON_GRID', 'DSM_ON_GRID', 'GRID']:
+        return 0
+    elif s in ['OFF_GRID', 'DSM_ISLANDED', 'ISLANDED']:
+        return 1
+    else:
+        return 99
 
 def bool2Nbr(self, bool):
     if bool == True:

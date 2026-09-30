@@ -11,12 +11,12 @@
      <range  uom="56" min="1" max="9" prec="0"/>
   </editor>
 
-  <editor id = "OPENCLOSE" > 
-     <range  uom="25" subset="0-1,99" nls="OPENCLOSE" />
+  <editor id="OPENCLOSE"> 
+     <range uom="25" subset="0,1,99" nls="OPENCLOSE" />
   </editor>
 
-  <editor id = "SET_OPENCLOSE" > 
-     <range  uom="25" subset="0-1" nls="OPENCLOSE" />
+  <editor id="SET_OPENCLOSE"> 
+     <range uom="25" subset="0,1" nls="OPENCLOSE" />
   </editor>
   <editor id = "KW" > 
      <range uom="30" min="-100" max="100" prec="1" />
@@ -35,17 +35,17 @@
      <range uom="25" subset="98-99" nls="NODATA" />
   </editor>
 
-  <editor id = "GRIDSTATE" > 
-     <range  uom="25" subset="0-1, 99" nls="GRIDSTATE" />
+  <editor id="GRIDSTATE"> 
+     <range uom="25" subset="0,1,99" nls="GRIDSTATE" />
   </editor>
-  <editor id = "GRIDSTATUS" > 
-     <range  uom="25" subset="0-1, 99" nls="GRIDSTATUS" />
+  <editor id="GRIDSTATUS"> 
+     <range uom="25" subset="0,1,99" nls="GRIDSTATUS" />
   </editor>
-  <editor id = "PRIORITY" > 
-     <range  uom="25" subset="0-2, 99" nls="PRIORITY" />
+  <editor id="PRIORITY"> 
+     <range uom="25" subset="0,1,2,99" nls="PRIORITY" />
   </editor>
-  <editor id = "SET_PRIORITY" > 
-     <range  uom="25" subset="0-2" nls="PRIORITY" />
+  <editor id="SET_PRIORITY"> 
+     <range uom="25" subset="0,1,2" nls="PRIORITY" />
   </editor>
   <editor id = "HOURS" > 
      <range  uom="20" min="0" max="100" prec="2" />

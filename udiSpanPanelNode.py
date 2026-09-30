@@ -14,7 +14,7 @@ except ImportError:
 
 
 class udiSpanPanelNode(udi_interface.Node):
-    from  udiLib import node_queue, wait_for_node_done,openClose2ISY, priority2ISY, mask2key, bool2ISY, round2ISY, my_setDriver
+    from  udiLib import node_queue, wait_for_node_done, openClose2ISY, priority2ISY, mask2key, bool2ISY, round2ISY, my_setDriver, gridState2ISY, gridStatus2ISY
 
     def __init__(self, polyglot, primary, address, name, span_ipadr, token, battery):
         #super(teslaPWStatusNode, self).__init__(polyglot, primary, address, name)
@@ -123,12 +123,12 @@ class udiSpanPanelNode(udi_interface.Node):
     def updateISYdrivers(self):
         logging.debug('Span Panel updateISYdrivers')
         #logging.debug(f'data: {self.span_panel.span_data}')
-        self.my_setDriver('ST', self.openClose2ISY(self.span_panel.get_main_panel_breaker_state()))
-        self.my_setDriver('GV0', self.openClose2ISY(self.span_panel.get_panel_door_state()))
+        self.my_setDriver('ST', self.openClose2ISY(self.span_panel.get_main_panel_breaker_state()), 25)
+        self.my_setDriver('GV0', self.openClose2ISY(self.span_panel.get_panel_door_state()), 25)
         self.my_setDriver('GV1', round(self.span_panel.get_instant_grid_power(),1), 73)
         self.my_setDriver('GV2', round(self.span_panel.get_feedthrough_power(),1), 73)
-        self.my_setDriver('GV3', 0 ) # Needs to be updated
-        self.my_setDriver('GV4', 0 )  # Needs to be updated 
+        self.my_setDriver('GV3', self.gridState2ISY(self.span_panel.get_grid_state()), 25)
+        self.my_setDriver('GV4', self.gridStatus2ISY(self.span_panel.get_dms_state()), 25)
         if self.battery_backup:
             self.my_setDriver('GV7', int(self.span_panel.get_battery_percentage()), 51 )   
         else:

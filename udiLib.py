@@ -207,34 +207,18 @@ def period2ISY(self, period):
     else:
         return (99) 
 
-DRIVER_TEXT_MAP = {
-    # spancircuit: GV1 is priority, GV2 is relay state
-    ('spancircuit', 'GV1'): {0: 'Must Have', 1: 'Nice to Have', 2: 'Not Essential', 99: 'Unknown'},
-    ('spancircuit', 'GV2'): {0: 'Closed', 1: 'Open', 99: 'Unknown'},
-    # spanpanel: GV0 is door, GV1 is breaker state, GV3 is grid state, GV4 is grid status
-    ('spanpanel', 'GV0'): {0: 'Closed', 1: 'Open', 99: 'Unknown'},
-    ('spanpanel', 'GV1'): {0: 'Closed', 1: 'Open', 99: 'Unknown'},
-    ('spanpanel', 'GV3'): {0: 'DSM_GRID_UP', 1: 'DSM_GRID_DOWN', 99: 'Unknown'},
-    ('spanpanel', 'GV4'): {0: 'ON_GRID', 1: 'OFF_GRID', 99: 'Unknown'},
-    # controller: ST is connection status
-    ('controller', 'ST'): {0: 'Not Connected', 1: 'Connected'},
-}
-
-def my_setDriver(self, key, value, Unit=None, force = None, text=None):
+def my_setDriver(self, key, value, Unit=None, force = None):
     target = getattr(self, 'node', None) or self
-    node_id = getattr(self, 'id', None) or getattr(target, 'id', None)
-    if text is None and Unit == 25 and value is not None:
-        text = DRIVER_TEXT_MAP.get((node_id, key), {}).get(value)
-    logging.debug('my_setDriver : {} {} {} text={}'.format(key, value, Unit, text))
+    logging.debug('my_setDriver : {} {} {}'.format(key, value, Unit))
     if value == None:
         logging.debug('None value passed = seting 99, UOM 25')
-        none_text = DRIVER_TEXT_MAP.get((node_id, key), {}).get(99, 'Unknown')
-        target.setDriver(key, 99, True, force!=None, uom=25, text=none_text)
+        target.setDriver(key, 99, True, force!=None, uom=25)
     else:
         if Unit:
-            target.setDriver(key, value, True, force!=None, uom=Unit, text=text)
+            target.setDriver(key, value, True, force!=None, uom=Unit)
         else:
-            target.setDriver(key, value, True, force!=None, text=text)
+            target.setDriver(key, value, True, force!=None)
+
 
 
 def send_rel_temp_to_isy(self, temperature, stateVar):

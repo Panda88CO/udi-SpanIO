@@ -253,8 +253,8 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
             ],
             "cmds": {
                 "sends": [
-                    {"id": "DON", "name": "Heartbeat On"},
-                    {"id": "DOF", "name": "Heartbeat Off"},
+                    {"id": "DON"},
+                    {"id": "DOF"},
                 ],
                 "accepts": [
                     {"id": "UPDATE", "name": "Update System Data"},
@@ -321,7 +321,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
     ]
 
 
-def dynamic_profile_payload(version: str = "0.1.19") -> Dict[str, Any]:
+def dynamic_profile_payload(version: str = "0.1.20") -> Dict[str, Any]:
     return {
         "version": version,
         "delete": {

@@ -1,7 +1,7 @@
 {
   "name": "udi-SpanIO",
-  "version": "0.1.19",
-  "profile_version": "0.1.19",
+  "version": "0.1.20",
+  "profile_version": "0.1.20",
   "shortPoll": 60,
   "longPoll": 300,
   "executable": "udiSpan.py",

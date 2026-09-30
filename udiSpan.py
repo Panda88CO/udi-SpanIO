@@ -17,7 +17,7 @@ except ImportError:
     logging.basicConfig(level=30)
 
 
-VERSION = '0.1.19'
+VERSION = '0.1.20'
 class SPANController(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, random_string, mask2key, heartbeat, bool2ISY, my_setDriver
 
@@ -307,7 +307,7 @@ class SPANController(udi_interface.Node):
 
         self.poly.Notices.clear()
 
-        self.node.setDriver('ST', 0 )
+        self.my_setDriver('ST', 0 )
         self.poly.stop()
         logging.debug('stop - Cleaning up')
     

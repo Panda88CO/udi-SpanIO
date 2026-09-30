@@ -5,6 +5,7 @@ import requests
 import json
 
 from udiSpanPanelNode import udiSpanPanelNode
+from dynamic_profile import dynamic_profile_payload
 try:
     import udi_interface
     logging = udi_interface.LOGGER
@@ -16,7 +17,7 @@ except ImportError:
     logging.basicConfig(level=30)
 
 
-VERSION = '0.1.15'
+VERSION = '0.1.16'
 class SPANController(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, random_string, mask2key, heartbeat, bool2ISY, my_setDriver
 
@@ -60,6 +61,7 @@ class SPANController(udi_interface.Node):
         self.poly.Notices.clear()
         self.nodeDefineDone = False
         self.longPollCountMissed = 0
+        self._update_dynamic_profile()
         self.poly.ready()
         logging.debug('Controller init DONE')        
         
@@ -71,8 +73,34 @@ class SPANController(udi_interface.Node):
         self.my_setDriver('ST', 1)
         logging.debug('Calling start')       
         self.poly.subscribe(self.poly.START, self.start, 'controller')
-        self.poly.updateProfile()
         logging.debug('finish Init ')
+        
+    def _update_dynamic_profile(self) -> None:
+        updater = getattr(self.poly, 'updateJsonProfile', None)
+        if callable(updater):
+            try:
+                updater(dynamic_profile_payload(), {'waitResponse': True})
+                logging.info('Dynamic profile updated successfully via PG3x updateJsonProfile')
+                if hasattr(self, 'Notices'):
+                    try:
+                        self.Notices.delete('profile')
+                    except Exception:
+                        pass
+                return
+            except Exception:
+                logging.exception('Dynamic profile update failed; attempting fallback')
+                if hasattr(self, 'Notices'):
+                    try:
+                        self.Notices['profile'] = 'Dynamic profile update failed. Falling back to static profile.'
+                    except Exception:
+                        pass
+        else:
+            logging.info('updateJsonProfile is not available on this interface; falling back to static profile')
+
+        try:
+            self.poly.updateProfile()
+        except Exception as e:
+            logging.warning(f'Static profile update failed or not supported: {e}')
         
     
     def customDataHandler(self, Data):

@@ -371,8 +371,8 @@ class SpanAccess(object):
         #logging.debug('data {}'.format(self.span_data.get('circuit_info', {}).get(breaker_id)  ))
         try:
             pwr = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('instantPowerW')
-            meas_time = int(time.time() -self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('instantPowerUpdateTimeS'))
-            return pwr,  meas_time
+            meas_time = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('instantPowerUpdateTimeS')
+            return pwr, int(meas_time) if meas_time is not None else None
         except Exception as e:
             return None, None    
 
@@ -383,7 +383,7 @@ class SpanAccess(object):
             consumed_energy = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('consumedEnergyWh') 
             meas_time = self.span_data.get('circuit_info', {}).get(breaker_id, {}).get('energyAccumUpdateTimeS')
             #logging.debug(f'{breaker_id} get_breaker_energy_info {produced_energy} {consumed_energy} {delay_time}')
-            return produced_energy, consumed_energy, meas_time
+            return produced_energy, consumed_energy, int(meas_time) if meas_time is not None else None
         except Exception as e:
             return None, None, None  
 

@@ -60,12 +60,18 @@ class udiSpanCircuitNode(udi_interface.Node):
         #logging.debug(f'data: {self.span_panel.span_data}')
         self.my_setDriver('ST', self.openClose2ISY(self.span_panel.get_breaker_state(self.circuit)))
         self.my_setDriver('GV1', self.priority2ISY(self.span_panel.get_breaker_priority(self.circuit)))
-        pwr, meas_time = self.span_panel.get_breaker_instant_power(self.circuit)
+        pwr, pwr_time = self.span_panel.get_breaker_instant_power(self.circuit)
         self.my_setDriver('GV2', round(-pwr, 1), 73)
-        self.my_setDriver('GV4', meas_time, 151)  # Needs to be updated
-        imp_wh, exp_wh, meas_time = self.span_panel.get_breaker_energy_info(self.circuit)
-        self.my_setDriver('GV5', round(imp_wh, 1), 119 ) 
-        self.my_setDriver('GV6', round(exp_wh, 1), 119 )   
+        self.my_setDriver('GV4', pwr_time, 151)
+        imp_wh, exp_wh, energy_time = self.span_panel.get_breaker_energy_info(self.circuit)
+        if type(imp_wh) in (int, float):
+            self.my_setDriver('GV5', round(imp_wh / 1000.0, 3), 33)
+        else:
+            self.my_setDriver('GV5', None, 25)
+        if type(exp_wh) in (int, float):
+            self.my_setDriver('GV6', round(exp_wh / 1000.0, 3), 33)
+        else:
+            self.my_setDriver('GV6', None, 25)
         producedWh, consumerWh = self.span_panel.get1HourAverage(self.circuit)
         
         if type(producedWh) in (int, float) and type(consumerWh) in (int, float):            
@@ -77,7 +83,7 @@ class udiSpanCircuitNode(udi_interface.Node):
             self.my_setDriver('GV8', -round((producedWh- consumerWh),1), 119) 
         else:
             self.my_setDriver('GV8', None, 25)           
-        self.my_setDriver('GV9', meas_time, 151 )  
+        self.my_setDriver('GV9', energy_time, 151)  
 
     def ISYupdate (self, command):
         logging.debug('ISY-update called')
@@ -140,8 +146,8 @@ class udiSpanCircuitNode(udi_interface.Node):
             #{'driver': 'GV3', 'value': 0, 'uom': 57}, 
             {'driver': 'GV4', 'value': 0, 'uom': 151},  
 
-            {'driver': 'GV5', 'value': 99, 'uom': 119},  
-            {'driver': 'GV6', 'value': 99, 'uom': 119},  
+            {'driver': 'GV5', 'value': 0, 'uom': 33},  
+            {'driver': 'GV6', 'value': 0, 'uom': 33},  
             {'driver': 'GV7', 'value': 99, 'uom': 119},  
             {'driver': 'GV8', 'value': 99, 'uom': 119}, 
 

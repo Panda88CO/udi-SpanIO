@@ -21,12 +21,12 @@ ND-spancircuit-ICON = EnergyMonitor
 ST-nlsspancircuit-ST-NAME = Circuit (relay) State
 ST-nlsspancircuit-GV1-NAME = Circuit (relay) Priority
 ST-nlsspancircuit-GV2-NAME = Instantaneous Power
-ST-nlsspancircuit-GV4-NAME = Time Since Power Measurement
+ST-nlsspancircuit-GV4-NAME = Power Measurement Time
 ST-nlsspancircuit-GV5-NAME = Imported Energy
 ST-nlsspancircuit-GV6-NAME = Exported Energy
 ST-nlsspancircuit-GV7-NAME = Energy last hour 
 ST-nlsspancircuit-GV8-NAME = Energy last 24 hours
-ST-nlsspancircuit-GV9-NAME = Time Since Energy Measurement
+ST-nlsspancircuit-GV9-NAME = Energy Measurement Time
 
 CMD-nlsspancircuit-UPDATE-NAME = Update Breaker Data
 

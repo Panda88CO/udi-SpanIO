@@ -59,11 +59,11 @@
          <st id="GV2" editor="W" />
          <st id="GV4" editor="UTIME" />
 
-         <st id="GV5" editor="WH" />
-         <st id="GV6" editor="WH" />
+         <st id="GV5" editor="KWH" />
+         <st id="GV6" editor="KWH" />
          <st id="GV7" editor="WH" />
          <st id="GV8" editor="WH" />         
-         <st id="GV9" editor="SECS" />
+         <st id="GV9" editor="UTIME" />
 
 
          <!--      

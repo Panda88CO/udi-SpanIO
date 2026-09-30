@@ -1,0 +1,8 @@
+{
+  "name": "udi-SpanIO",
+  "version": "0.1.16",
+  "shortPoll": 60,
+  "longPoll": 300,
+  "executable": "udiSpan.py",
+  "description": "SPAN IO Power Panel node server for UDI PG3x"
+}

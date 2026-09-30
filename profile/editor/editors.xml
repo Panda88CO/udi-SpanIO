@@ -23,15 +23,15 @@
      <range uom="25" subset="98-99" nls="NODATA" />
   </editor>
   <editor id = "KWH" > 
-     <range uom="33" min="-100" max="100" prec="1" />
+     <range uom="33" min="-1000000" max="1000000" prec="3" />
      <range uom="25" subset="98-99" nls="NODATA" />
   </editor>
   <editor id = "W" > 
-     <range uom="73" min="-50000" max="50000" prec="1" />
+     <range uom="73" min="-150000" max="150000" prec="1" />
      <range uom="25" subset="98-99" nls="NODATA" />
   </editor>
     <editor id = "WH" > 
-     <range uom="119" min="-50000" max="50000" prec="1" />
+     <range uom="119" min="-1000000" max="1000000" prec="1" />
      <range uom="25" subset="98-99" nls="NODATA" />
   </editor>
 

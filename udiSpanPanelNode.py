@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#import time
+import time
 from Spanlib import SpanAccess
 from udiSpanCircuitNode import udiSpanCircuitNode
 try:
@@ -29,29 +29,26 @@ class udiSpanPanelNode(udi_interface.Node):
         self.address = address
         self.primary = primary
         self.name = name
+        self.node = self
+        self.circuit_access = {}
         self.n_queue = []
         self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
         self.poly.subscribe(self.poly.START, self.start, address)
         self.poly.subscribe(self.poly.POLL, self.systemPoll)
-        self.poly.ready()
         self.poly.addNode(self)
-        self.wait_for_node_done()
-        self.node = self.poly.getNode(address)
-        #self.TPW = tesla_info(self.my_TeslaPW, self.site_id)
-        #self.TPW.tesla_get_site_info(self.site_id)
-        #self.TPW.tesla_get_live_status(self.site_id)
-        
-        #polyglot.subscribe(polyglot.START, self.start, address)
-        self.circuit_access = {}
+        self.wait_for_node_done(address)
+        self.node = self.poly.getNode(address) or self
+        time.sleep(0.1)
         
     def start(self):   
         logging.debug('StartSpanIO Panel Node')
-        #self.TPW = tesla_info(self.my_TeslaPW, self.site_id)
-        logging.info('Adding power wall sub-nodes')
+        if self.node_ok:
+            logging.debug('Span Panel Node already initialized')
+            return
+        logging.info('Adding SPAN panel sub-nodes')
         self.span_panel = SpanAccess(self.span_ipadr, self.token)
         self.update_data()        
         self.create_subnodes()
-        self.update_data()
         self.updateISYdrivers()
         self.node_ok = True
 
@@ -62,11 +59,17 @@ class udiSpanPanelNode(udi_interface.Node):
         #logging.debug(f'Panel {self.span_ipadr} Circuits info: {code} , {self.circuits }')            
         if code == 200:
             for circuit in self.circuits:
-                logging.debug('adding circuit {} = {}'.format(circuit,self.circuits[circuit]['name'] ))
+                logging.info(f'adding circuit {circuit} = {self.circuits[circuit]["name"]}')
                 circuitADR = circuit[-14:]
                 nodeaddress  = self.poly.getValidAddress(circuitADR)
                 nodename = self.poly.getValidName(self.circuits[circuit]['name'])
-                self.circuit_access[circuit] = udiSpanCircuitNode(self.poly, self.panel_node_adr, nodeaddress, nodename, self.span_panel, str(circuit))
+                circuit_node = udiSpanCircuitNode(self.poly, self.panel_node_adr, nodeaddress, nodename, self.span_panel, str(circuit))
+                self.circuit_access[circuit] = circuit_node
+                self.poly.addNode(circuit_node)
+                self.wait_for_node_done(nodeaddress)
+                if not circuit_node.node_ok:
+                    circuit_node.start()
+                time.sleep(0.1)
                                                                 
     def systemPoll(self, pollList):
         logging.info(f'systemPoll {self.span_ipadr }')

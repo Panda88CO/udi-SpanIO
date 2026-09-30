@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#import time
+import time
 
 try:
     import udi_interface
@@ -13,10 +13,9 @@ except ImportError:
 
 
 class udiSpanCircuitNode(udi_interface.Node):
-    from  udiLib import node_queue, wait_for_node_done, openClose2ISY, priority2ISY, mask2key, bool2ISY, round2ISY, my_setDriver
+    from  udiLib import openClose2ISY, priority2ISY, mask2key, bool2ISY, round2ISY, my_setDriver
 
     def __init__(self, polyglot, primary, address, name, span_access, circuit):
-        #super(teslaPWStatusNode, self).__init__(polyglot, primary, address, name)
         logging.info(f'_init_ Span Circuit Node {name}')
         self.poly = polyglot
         self.span_panel = span_access
@@ -26,24 +25,17 @@ class udiSpanCircuitNode(udi_interface.Node):
         self.address = address
         self.primary = primary
         self.name = name
-        self.n_queue = []
-        self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
+        self.node = self
         self.poly.subscribe(self.poly.START, self.start, address)
 
-        self.poly.ready()
-        self.poly.addNode(self)
-        self.wait_for_node_done()
-        self.node = self.poly.getNode(address)
-
-        
-
-        
     def start(self):   
         logging.debug(f'Start Span Circuit node {self.name}')
-
+        if self.node_ok:
+            logging.debug(f'Span Circuit node {self.name} already initialized')
+            return
+        self.node = self.poly.getNode(self.address) or self
         self.update_data()
         self.updateISYdrivers()
-        
         self.node_ok = True
 
     def stop(self):
@@ -52,8 +44,10 @@ class udiSpanCircuitNode(udi_interface.Node):
     def node_ready(self):
         return(self.node_ok)
 
-    def update_data(self):
-        code = self.span_panel.update_panel_breaker_info(self.circuit )
+    def update_data(self, force=False):
+        if not force and self.span_panel and self.circuit in self.span_panel.span_data.get('circuit_info', {}):
+            return
+        code = self.span_panel.update_panel_breaker_info(self.circuit)
 
     def updateISYdrivers(self):
         logging.debug(f'SpanCircuit updateISYdrivers {self.name}')
@@ -88,7 +82,7 @@ class udiSpanCircuitNode(udi_interface.Node):
     def ISYupdate (self, command):
         logging.debug('ISY-update called')
         #self.update_PW_data(self.site_id, 'all')
-        self.update_data()
+        self.update_data(force=True)
         self.updateISYdrivers()
 
     def set_breaker(self, command):

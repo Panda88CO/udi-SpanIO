@@ -26,12 +26,31 @@ def random_string(self, length):
 
 def node_queue(self, data):
     #logging.debug('node_queue {}'.format(data))
-    self.n_queue.append(data['address'])
+    if isinstance(data, dict):
+        if 'address' in data:
+            self.n_queue.append(data['address'])
+    elif isinstance(data, str):
+        self.n_queue.append(data)
 
-def wait_for_node_done(self):
-    while len(self.n_queue) == 0:
+def wait_for_node_done(self, address=None):
+    target_address = address if address is not None else getattr(self, 'address', None)
+    logging.debug(f'Waiting for node done: {target_address}')
+    start_time = time.time()
+    timeout = 20
+    while time.time() - start_time < timeout:
+        if target_address:
+            if target_address in self.n_queue:
+                self.n_queue.remove(target_address)
+                logging.debug(f'Node done confirmed for: {target_address}')
+                return True
+        else:
+            if len(self.n_queue) > 0:
+                popped = self.n_queue.pop(0)
+                logging.debug(f'Node done confirmed (popped {popped})')
+                return True
         time.sleep(0.1)
-    self.n_queue.pop()
+    logging.warning(f'Timeout waiting for ADDNODEDONE for {target_address}')
+    return False
 
 def mask2key (self, mask):
     #logging.debug('mask2key : {}'.format(mask))
@@ -154,14 +173,15 @@ def period2ISY(self, period):
 
 def my_setDriver(self, key, value, Unit=None, force = None):
     logging.debug('my_setDriver : {} {} {}'.format(key, value, Unit))
+    target = getattr(self, 'node', None) or self
     if value == None:
         logging.debug('None value passed = seting 99, UOM 25')
-        self.node.setDriver(key, 99, True, force!=None, 25)
+        target.setDriver(key, 99, True, force!=None, 25)
     else:
         if Unit:
-            self.node.setDriver(key, value, True, force!=None, Unit)
+            target.setDriver(key, value, True, force!=None, Unit)
         else:
-            self.node.setDriver(key, value, True, force!=None)
+            target.setDriver(key, value, True, force!=None)
 
 
 def send_rel_temp_to_isy(self, temperature, stateVar):

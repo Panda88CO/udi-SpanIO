@@ -17,7 +17,7 @@ except ImportError:
     logging.basicConfig(level=30)
 
 
-VERSION = '0.1.16'
+VERSION = '0.1.17'
 class SPANController(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, random_string, mask2key, heartbeat, bool2ISY, my_setDriver
 
@@ -66,9 +66,10 @@ class SPANController(udi_interface.Node):
         logging.debug('Controller init DONE')        
         
         self.poly.addNode(self)
-        self.wait_for_node_done()
+        self.wait_for_node_done(self.address)
+        time.sleep(0.1)
         
-        self.node = self.poly.getNode(self.address)
+        self.node = self.poly.getNode(self.address) or self
         logging.debug('Node info: {}'.format(self.node))
         self.my_setDriver('ST', 1)
         logging.debug('Calling start')       
@@ -243,6 +244,7 @@ class SPANController(udi_interface.Node):
             
   
             assigned_addresses.append(address)
+            time.sleep(0.2)
      
     
         while not self.config_done:

@@ -1,29 +1,72 @@
-# udi-SpanIO -  for Polyglot v3 
+# udi-SpanIO - SPAN IO Power Panel Node Server for Polyglot PG3x
 
-## SpanIO power Panel Node server
-# udi-TeSpanIO  -  for Polyglot PG3x
-## SpanIO Node server
+This node server integrates, monitors, and controls one or more **SPAN IO** smart electrical panels with Universal Devices systems (eisy / IoX) using Polyglot PG3x.
 
-This node server enables , monitors and controls of one or more SpanIO power panels in a system.
-The nodes uses an unofficial derived API for local access to the panel - documentation exist at https://gist.github.com/hyun007/c689fbed10424b558f140c54851659e3 although it is not 100% up to date.
+The node server connects locally to the SPAN panel using the local SPAN REST API.
 
-The node creates a separate node used to show the node is running and the number of SpanIO panels in the system.  Each panel is instantiated as a main node (named as IP address without '.'s).  Each group (one or more breakers) are created as a sub-note.  The node allows opening and closing the breaker (relay in the panel - not the main breaker).  The API supposedly supports changing the priority of the breaker, but in generates an internal error, so it is not exposed to user fopr now
-The configuration takes a list of IP addresses (space separated) - Only use 1 IPaddress per panel (they have up to 3 IPaddresses per panel) (ideally ethernet if available).  It is important that the IP address does not change.  
-There is also a flag to enable reading of a backup battery (percentage) if supported 
+---
 
-The nodes provides power consumption data, breaker state as well as some connection status information.  Exported Energy 
+## Features
 
-## Installation
-To register the panel(s), one must start the node and then go to the panel, open the door and press the door contact (upper corner) 3 times (quickly) - the panel should then blink the light and it will go into register mode. Do this for all panels if more than 1 panel is installed 
+- **Controller Node**:
+  - Monitors plugin connection status (`ST`: Connected / Not Connected)
+  - Displays total number of SPAN panels monitored (`GV1`)
+  - Periodic heartbeat (`DON`/`DOF`)
+- **Panel Node (per SPAN Panel)**:
+  - `ST`: Instant Panel Power (Watts)
+  - `GV0`: Panel Door State (Closed / Open / Unknown)
+  - `GV1`: Main Panel Breaker State (Closed / Open)
+  - `GV2`: Instant Feedthrough Power (Watts)
+  - `GV3`: Grid State (`DSM_GRID_UP` / `DSM_GRID_DOWN`)
+  - `GV4`: Grid Status (`ON_GRID` / `OFF_GRID`)
+  - `GV7`: Backup Battery Capacity (%, optional)
+  - Manual data update command
+- **Circuit / Breaker Sub-Nodes (per Circuit)**:
+  - `ST`: Instantaneous Power (Watts)
+  - `GV1`: Circuit Priority (`Must Have` / `Nice to Have` / `Not Essential`)
+  - `GV2`: Circuit Relay State (Closed / Open)
+  - `GV4`: Power Measurement Timestamp (Epoch seconds)
+  - `GV5`: Imported Energy (kWh)
+  - `GV6`: Exported Energy (kWh)
+  - `GV7`: Net Energy Last 1 Hour (Wh)
+  - `GV8`: Net Energy Last 24 Hours (Wh)
+  - `GV9`: Energy Measurement Timestamp (Epoch seconds)
+  - Command: `OPENCLOSE` (Open / Close circuit relay)
+- **Dynamic Profile Provisioning**:
+  - Automatically provisions profile definitions (editors, node definitions, translations) to IoX via PG3x dynamic profile support, keeping definitions synchronized without requiring manual profile installations or IoX restarts.
+  - Also includes a pre-packaged static profile (`profile.zip` with `version.txt`).
 
-After this nodes will be generated and will start operating.   
+---
 
-## Notes 
-The node has not been tested with ore than 1 SpanIO panel - there are likely bugs when using more than 1 - please enable debug and send me log files if there are issues
-Power on the breaker results in 2 numbers for energy - Exported and Imported (Exported is exported from breaker panel to house circuits) - Imported energy is a return flow (My guess)
-Energy last Hour/Day will not show data until the node has been running for a hour/day
+## Configuration
 
-shortPoll updates critical parameters and issues a heartbeat for each panel(Connection to grid and battery % - no update on circuits) 
-longPoll updates all data for each panel 
+In the Polyglot Dashboard under **Configuration**, configure the following parameters:
 
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `LOCAL_IP_ADDRESSES` | String | Space-separated list of local IP addresses for your SPAN panels (e.g. `192.168.1.50`). Use only **one** IP address per panel (Ethernet connection with a static DHCP reservation is strongly recommended). |
+| `BACKUP_BATTERY` | String | Set to `TRUE` if you have an integrated home battery backup system (e.g. Tesla Powerwall, Enphase) connected to the SPAN panel to report State of Charge (SOC %), or `FALSE` otherwise. |
 
+---
+
+## Installation & Panel Pairing
+
+1. Enter your panel's IP address in the configuration and start the node server.
+2. When the node server starts for the first time with an unregistered panel, it will request authorization. A notice will appear in Polyglot.
+3. Walk over to your SPAN panel, open the panel door, and **quickly press the door proximity/tamper switch in the upper corner 3 times**.
+4. The panel light will blink to indicate it has entered registration mode.
+5. The node server will complete registration, save the auth token to custom data, and discover all panel circuits and sub-nodes.
+
+---
+
+## Polling Behavior
+
+- **shortPoll** (default 60s): Updates critical panel parameters (instant panel power, door state, grid connection state, battery SOC) and heartbeat.
+- **longPoll** (default 300s): Updates full panel telemetry and all circuit/breaker sub-nodes, and computes 1-hour and 24-hour net energy consumption.
+
+---
+
+## Notes
+
+- **Energy Measurement**: Breaker energy reports imported energy (energy consumed by the circuit) and exported energy (e.g., solar or storage backfeed).
+- **1-Hour and 24-Hour Averages**: 1-hour and 24-hour net energy statistics will populate once the node server has collected data across those respective time windows.

@@ -123,16 +123,19 @@ class udiSpanPanelNode(udi_interface.Node):
     def updateISYdrivers(self):
         logging.debug('Span Panel updateISYdrivers')
         #logging.debug(f'data: {self.span_panel.span_data}')
-        self.my_setDriver('ST', round(self.span_panel.get_instant_grid_power(), 1), 73)
+        grid_pwr = self.span_panel.get_instant_grid_power()
+        self.my_setDriver('ST', round(grid_pwr, 1) if isinstance(grid_pwr, (int, float)) else None, 73)
         self.my_setDriver('GV0', self.openClose2ISY(self.span_panel.get_panel_door_state()), 25)
         self.my_setDriver('GV1', self.openClose2ISY(self.span_panel.get_main_panel_breaker_state()), 25)
-        self.my_setDriver('GV2', round(self.span_panel.get_feedthrough_power(), 1), 73)
+        ft_pwr = self.span_panel.get_feedthrough_power()
+        self.my_setDriver('GV2', round(ft_pwr, 1) if isinstance(ft_pwr, (int, float)) else None, 73)
         self.my_setDriver('GV3', self.gridState2ISY(self.span_panel.get_grid_state()), 25)
         self.my_setDriver('GV4', self.gridStatus2ISY(self.span_panel.get_dms_state()), 25)
         if self.battery_backup:
-            self.my_setDriver('GV7', int(self.span_panel.get_battery_percentage()), 51 )   
+            bat = self.span_panel.get_battery_percentage()
+            self.my_setDriver('GV7', int(bat) if isinstance(bat, (int, float)) else None, 51)   
         else:
-            self.my_setDriver('GV7', None, 25 )
+            self.my_setDriver('GV7', None, 25)
 
 
     def ISYupdate (self, command):

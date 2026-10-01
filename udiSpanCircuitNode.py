@@ -53,7 +53,8 @@ class udiSpanCircuitNode(udi_interface.Node):
         logging.debug(f'SpanCircuit updateISYdrivers {self.name}')
         #logging.debug(f'data: {self.span_panel.span_data}')
         pwr, pwr_time = self.span_panel.get_breaker_instant_power(self.circuit)
-        self.my_setDriver('ST', round(-pwr, 1), 73)
+        pwr_val = round(-pwr, 1) if isinstance(pwr, (int, float)) else None
+        self.my_setDriver('ST', pwr_val, 73)
         self.my_setDriver('GV1', self.priority2ISY(self.span_panel.get_breaker_priority(self.circuit)), 25)
         self.my_setDriver('GV2', self.openClose2ISY(self.span_panel.get_breaker_state(self.circuit)), 25)
         self.my_setDriver('GV4', pwr_time, 151)

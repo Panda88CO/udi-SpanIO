@@ -45,6 +45,7 @@ class udiSpanCircuitNode(udi_interface.Node):
         return(self.node_ok)
 
     def update_data(self, force=False):
+        if not force and self.span_panel and self.circuit in self.span_panel.span_data.get('circuit_info', {}):
         if not force and self.span_panel and self.circuit in (self.span_panel.span_data.get('circuit_info') or {}):
             return
         code = self.span_panel.update_panel_breaker_info(self.circuit)
@@ -57,6 +58,7 @@ class udiSpanCircuitNode(udi_interface.Node):
         self.my_setDriver('ST', pwr_val, 73)
         self.my_setDriver('GV1', self.priority2ISY(self.span_panel.get_breaker_priority(self.circuit)), 25)
         self.my_setDriver('GV2', self.openClose2ISY(self.span_panel.get_breaker_state(self.circuit)), 25)
+        self.my_setDriver('GV4', pwr_time, 151)
         if pwr_time is not None:
             self.my_setDriver('GV4', pwr_time, 151)
         imp_wh, exp_wh, energy_time = self.span_panel.get_breaker_energy_info(self.circuit)
@@ -79,6 +81,7 @@ class udiSpanCircuitNode(udi_interface.Node):
             self.my_setDriver('GV8', -round((producedWh- consumerWh),1), 119) 
         else:
             self.my_setDriver('GV8', None, 25)           
+        self.my_setDriver('GV9', energy_time, 151)  
         if energy_time is not None:
             self.my_setDriver('GV9', energy_time, 151)  
 

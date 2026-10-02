@@ -159,9 +159,14 @@ class SpanAccess(object):
             produced_energy = circuit.get('producedEnergyWh')
             consumed_energy = circuit.get('consumedEnergyWh')
         except Exception as e:
+            update_time = int(time.time())
+            produced_energy = 0.0
+            consumed_energy = 0.0
             logging.debug(f'update_Accum_EnergyBreaker - error getting energy for {breaker_id}: {e}')
             return
 
+        if update_time is None:
+            update_time = int(time.time())
         # Do NOT update time or accum data if no data or invalid timestamp occurs
         if (
             update_time is None
@@ -369,6 +374,7 @@ class SpanAccess(object):
             circuit = (self.span_data.get('circuit_info') or {}).get(breaker_id) or {}
             pwr = circuit.get('instantPowerW')
             meas_time = circuit.get('instantPowerUpdateTimeS')
+            return pwr, int(meas_time) if meas_time is not None else None
             if (
                 pwr is None
                 or not isinstance(pwr, (int, float))
@@ -388,6 +394,7 @@ class SpanAccess(object):
             produced_energy = circuit.get('producedEnergyWh')
             consumed_energy = circuit.get('consumedEnergyWh') 
             meas_time = circuit.get('energyAccumUpdateTimeS')
+            return produced_energy, consumed_energy, int(meas_time) if meas_time is not None else None
             if (
                 (produced_energy is None and consumed_energy is None)
                 or meas_time is None

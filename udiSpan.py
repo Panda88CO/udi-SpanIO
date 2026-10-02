@@ -173,22 +173,21 @@ class SPANController(udi_interface.Node):
         # Example for a boolean field
 
         if 'LOCAL_IP_ADDRESSES' in self.customParameters:
-            if self.customParameters['LOCAL_IP_ADDRESSES'] != 'x.x.x.x':
-                ipstring = self.customParameters['LOCAL_IP_ADDRESSES']
-                self.span_ip_list= ipstring.split()
+            ipstring = self.customParameters['LOCAL_IP_ADDRESSES']
+            if ipstring is not None and ipstring != 'x.x.x.x':
+                self.span_ip_list = ipstring.split()
                 self.NBR_PANELS = len(self.span_ip_list)
                 #oauthSettingsUpdate['client_secret'] = self.customParameters['clientSecret']
                 #secret_ok = True
         else:
-            logging.warning('No LOCAL_IP_ADDRESS found')
-            self.customParameters['LOCAL_IP_ADDRESS'] = 'enter list of LOCAL_IP_ADDRESSES (one per panel)'
+            logging.warning('No LOCAL_IP_ADDRESSES found')
+            self.customParameters['LOCAL_IP_ADDRESSES'] = 'enter list of LOCAL_IP_ADDRESSES (one per panel)'
             self.span_ip_list = []
-        logging.debug('customParamsHandler finish ')
-        self.customParam_done = True
 
         if 'BACKUP_BATTERY' in self.customParameters:
-            if self.customParameters['BACKUP_BATTERY'] != 'TRUE/FALSE':
-                self.battery_backup =  self.customParameters['BACKUP_BATTERY'][0].upper() == 'T'
+            battery_val = self.customParameters['BACKUP_BATTERY']
+            if battery_val is not None and battery_val != 'TRUE/FALSE' and len(battery_val) > 0:
+                self.battery_backup = battery_val[0].upper() == 'T'
                 #oauthSettingsUpdate['client_secret'] = self.customParameters['clientSecret']
                 #secret_ok = True
         else:

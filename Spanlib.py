@@ -32,6 +32,27 @@ class SpanAccess(object):
         self.SAVE_TO_FILE = False
         self.load_accum_data()
 
+    @staticmethod
+    def _parse_time(val):
+        if val is None:
+            return None
+        try:
+            val_f = float(val)
+            if val_f > 0:
+                return int(val_f)
+        except (ValueError, TypeError):
+            pass
+        return None
+
+    @staticmethod
+    def _parse_float(val):
+        if val is None:
+            return None
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return None
+
     def update_panel_status(self):
         try:
             code, status = self.getSpanStatusInfo()
@@ -155,33 +176,27 @@ class SpanAccess(object):
         daySec = 86400 # 60*60*24
         try:
             circuit = (self.span_data.get('circuit_info') or {}).get(breaker_id) or {}
-            update_time = circuit.get('energyAccumUpdateTimeS')
+            update_time = self._parse_time(circuit.get('energyAccumUpdateTimeS'))
             produced_energy = circuit.get('producedEnergyWh')
+            if produced_energy is None:
+                produced_energy = circuit.get('exportEnergyAccumWh')
             consumed_energy = circuit.get('consumedEnergyWh')
+            if consumed_energy is None:
+                consumed_energy = circuit.get('importEnergyAccumWh')
         except Exception as e:
-            update_time = int(time.time())
-            produced_energy = 0.0
-            consumed_energy = 0.0
             logging.debug(f'update_Accum_EnergyBreaker - error getting energy for {breaker_id}: {e}')
             return
 
-        if update_time is None:
-            update_time = int(time.time())
         # Do NOT update time or accum data if no data or invalid timestamp occurs
         if (
             update_time is None
-            or not isinstance(update_time, (int, float))
-            or update_time <= 0
             or (produced_energy is None and consumed_energy is None)
         ):
             logging.debug(f'update_Accum_EnergyBreaker - no data or invalid timestamp for {breaker_id}, skipping')
             return
 
-        update_time = int(update_time)
-        if produced_energy is None:
-            produced_energy = 0.0
-        if consumed_energy is None:
-            consumed_energy = 0.0
+        produced_energy = self._parse_float(produced_energy) or 0.0
+        consumed_energy = self._parse_float(consumed_energy) or 0.0
 
         if breaker_id not in self.accum_data:
             self.accum_data[breaker_id] = {}
@@ -281,8 +296,8 @@ class SpanAccess(object):
         logging.debug('panel info {}'.format(self.span_data.get('panel_info')))
         self.update_battery_info()
         logging.debug('battery info {}'.format(self.span_data.get('battery_info')))
-        #self.update_circuit_info()
-        #logging.debug('circuit info {}'.format(self.span_data.get('circuit_info')))        
+        self.update_circuit_info()
+        logging.debug('circuit info {}'.format(self.span_data.get('circuit_info')))        
         self.update_Accum_Energy(None, True)
 
 
@@ -372,18 +387,9 @@ class SpanAccess(object):
         logging.debug(f'get_breaker_instant_power {breaker_id}')
         try:
             circuit = (self.span_data.get('circuit_info') or {}).get(breaker_id) or {}
-            pwr = circuit.get('instantPowerW')
-            meas_time = circuit.get('instantPowerUpdateTimeS')
-            return pwr, int(meas_time) if meas_time is not None else None
-            if (
-                pwr is None
-                or not isinstance(pwr, (int, float))
-                or meas_time is None
-                or not isinstance(meas_time, (int, float))
-                or meas_time <= 0
-            ):
-                return (pwr if isinstance(pwr, (int, float)) else None), None
-            return pwr, int(meas_time)
+            pwr = self._parse_float(circuit.get('instantPowerW'))
+            meas_time = self._parse_time(circuit.get('instantPowerUpdateTimeS'))
+            return pwr, meas_time
         except Exception as e:
             return None, None    
 
@@ -392,21 +398,15 @@ class SpanAccess(object):
         try:
             circuit = (self.span_data.get('circuit_info') or {}).get(breaker_id) or {}
             produced_energy = circuit.get('producedEnergyWh')
+            if produced_energy is None:
+                produced_energy = circuit.get('exportEnergyAccumWh')
             consumed_energy = circuit.get('consumedEnergyWh') 
-            meas_time = circuit.get('energyAccumUpdateTimeS')
-            return produced_energy, consumed_energy, int(meas_time) if meas_time is not None else None
-            if (
-                (produced_energy is None and consumed_energy is None)
-                or meas_time is None
-                or not isinstance(meas_time, (int, float))
-                or meas_time <= 0
-            ):
-                return (
-                    produced_energy if isinstance(produced_energy, (int, float)) else None,
-                    consumed_energy if isinstance(consumed_energy, (int, float)) else None,
-                    None,
-                )
-            return produced_energy, consumed_energy, int(meas_time)
+            if consumed_energy is None:
+                consumed_energy = circuit.get('importEnergyAccumWh')
+            prod_val = self._parse_float(produced_energy)
+            cons_val = self._parse_float(consumed_energy)
+            meas_time = self._parse_time(circuit.get('energyAccumUpdateTimeS'))
+            return prod_val, cons_val, meas_time
         except Exception as e:
             return None, None, None  
 

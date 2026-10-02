@@ -340,8 +340,10 @@ class SPANController(udi_interface.Node):
 
 
     def ISYupdate (self, command):
-        logging.debug('ISY-update called')
-        self.shortPoll()
+        logging.debug('ISY-update called on controller')
+        for ip, panel in self.span_panel.items():
+            if panel and hasattr(panel, 'ISYupdate'):
+                panel.ISYupdate(command)
 
 
     id = 'controller'

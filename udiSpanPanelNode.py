@@ -49,7 +49,7 @@ class udiSpanPanelNode(udi_interface.Node):
         self.span_panel = SpanAccess(self.span_ipadr, self.token)
         self.update_data()        
         self.create_subnodes()
-        self.updateISYdrivers()
+        self.updateISYdrivers(force=True)
         self.node_ok = True
 
 
@@ -96,14 +96,16 @@ class udiSpanPanelNode(udi_interface.Node):
     def shortPoll(self):
         logging.debug(f'shortPoll {self.span_ipadr }')
         self.update_critical_data()
-        self.updateISYdrivers()
+        self.updateISYdrivers(force=True)
+        for circuit in self.circuit_access:
+            self.circuit_access[circuit].updateISYdrivers(force=True)
 
     def longPoll(self):
         logging.debug(f'longPoll {self.span_ipadr }')
         self.update_data()   
-        self.updateISYdrivers()
+        self.updateISYdrivers(force=True)
         for circuit in self.circuit_access:
-            self.circuit_access[circuit].updateISYdrivers()
+            self.circuit_access[circuit].updateISYdrivers(force=True)
 
     def update_data(self):
         self.span_panel.update_span_data()
@@ -120,29 +122,31 @@ class udiSpanPanelNode(udi_interface.Node):
 
 
 
-    def updateISYdrivers(self):
-        logging.debug('Span Panel updateISYdrivers')
+    def updateISYdrivers(self, force=False):
+        logging.debug(f'Span Panel updateISYdrivers force={force}')
         #logging.debug(f'data: {self.span_panel.span_data}')
         grid_pwr = self.span_panel.get_instant_grid_power()
-        self.my_setDriver('ST', round(grid_pwr, 1) if isinstance(grid_pwr, (int, float)) else None, 73)
-        self.my_setDriver('GV0', self.openClose2ISY(self.span_panel.get_panel_door_state()), 25)
-        self.my_setDriver('GV1', self.openClose2ISY(self.span_panel.get_main_panel_breaker_state()), 25)
+        self.my_setDriver('ST', round(grid_pwr, 1) if isinstance(grid_pwr, (int, float)) else None, 73, force=force)
+        self.my_setDriver('GV0', self.openClose2ISY(self.span_panel.get_panel_door_state()), 25, force=force)
+        self.my_setDriver('GV1', self.openClose2ISY(self.span_panel.get_main_panel_breaker_state()), 25, force=force)
         ft_pwr = self.span_panel.get_feedthrough_power()
-        self.my_setDriver('GV2', round(ft_pwr, 1) if isinstance(ft_pwr, (int, float)) else None, 73)
-        self.my_setDriver('GV3', self.gridState2ISY(self.span_panel.get_grid_state()), 25)
-        self.my_setDriver('GV4', self.gridStatus2ISY(self.span_panel.get_dms_state()), 25)
+        self.my_setDriver('GV2', round(ft_pwr, 1) if isinstance(ft_pwr, (int, float)) else None, 73, force=force)
+        self.my_setDriver('GV3', self.gridState2ISY(self.span_panel.get_grid_state()), 25, force=force)
+        self.my_setDriver('GV4', self.gridStatus2ISY(self.span_panel.get_dms_state()), 25, force=force)
         if self.battery_backup:
             bat = self.span_panel.get_battery_percentage()
-            self.my_setDriver('GV7', int(bat) if isinstance(bat, (int, float)) else None, 51)   
+            self.my_setDriver('GV7', int(bat) if isinstance(bat, (int, float)) else None, 51, force=force)   
         else:
-            self.my_setDriver('GV7', None, 25)
+            self.my_setDriver('GV7', None, 25, force=force)
 
 
     def ISYupdate (self, command):
         logging.debug('ISY-update called')
         #self.update_PW_data(self.site_id, 'all')
         self.update_data()
-        self.updateISYdrivers()
+        self.updateISYdrivers(force=True)
+        for circuit in self.circuit_access:
+            self.circuit_access[circuit].updateISYdrivers(force=True)
 
  
 

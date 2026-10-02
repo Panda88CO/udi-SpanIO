@@ -207,17 +207,18 @@ def period2ISY(self, period):
     else:
         return (99) 
 
-def my_setDriver(self, key, value, Unit=None, force = None):
+def my_setDriver(self, key, value, Unit=None, force=False):
     target = getattr(self, 'node', None) or self
-    logging.debug('my_setDriver : {} {} {}'.format(key, value, Unit))
-    if value == None:
+    force_val = bool(force)
+    logging.debug('my_setDriver : {} {} {} force={}'.format(key, value, Unit, force_val))
+    if value is None:
         logging.debug('None value passed = seting 99, UOM 25')
-        target.setDriver(key, 99, True, force!=None, uom=25)
+        target.setDriver(key, 99, True, force_val, uom=25)
     else:
         if Unit:
-            target.setDriver(key, value, True, force!=None, uom=Unit)
+            target.setDriver(key, value, True, force_val, uom=Unit)
         else:
-            target.setDriver(key, value, True, force!=None)
+            target.setDriver(key, value, True, force_val)
 
 
 

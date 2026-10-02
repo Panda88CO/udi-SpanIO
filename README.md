@@ -61,8 +61,8 @@ In the Polyglot Dashboard under **Configuration**, configure the following param
 
 ## Polling Behavior
 
-- **shortPoll** (default 60s): Updates critical panel parameters (instant panel power, door state, grid connection state, battery SOC) and heartbeat.
-- **longPoll** (default 300s): Updates full panel telemetry and all circuit/breaker sub-nodes, and computes 1-hour and 24-hour net energy consumption.
+- **shortPoll** (default 60s): Polls panel telemetry, battery status, and all circuit/breaker sub-nodes, ensuring driver states and timestamps update automatically in IoX.
+- **longPoll** (default 300s): Performs full panel telemetry sync, recalculates 1-hour and 24-hour energy averages, and saves historical accumulation data.
 
 ---
 

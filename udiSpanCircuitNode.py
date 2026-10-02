@@ -35,7 +35,7 @@ class udiSpanCircuitNode(udi_interface.Node):
             return
         self.node = self.poly.getNode(self.address) or self
         self.update_data()
-        self.updateISYdrivers()
+        self.updateISYdrivers(force=True)
         self.node_ok = True
 
     def stop(self):
@@ -45,51 +45,59 @@ class udiSpanCircuitNode(udi_interface.Node):
         return(self.node_ok)
 
     def update_data(self, force=False):
-        if not force and self.span_panel and self.circuit in self.span_panel.span_data.get('circuit_info', {}):
         if not force and self.span_panel and self.circuit in (self.span_panel.span_data.get('circuit_info') or {}):
             return
         code = self.span_panel.update_panel_breaker_info(self.circuit)
 
-    def updateISYdrivers(self):
-        logging.debug(f'SpanCircuit updateISYdrivers {self.name}')
-        #logging.debug(f'data: {self.span_panel.span_data}')
+    def updateISYdrivers(self, force=False):
+        logging.debug(f'SpanCircuit updateISYdrivers {self.name} force={force}')
         pwr, pwr_time = self.span_panel.get_breaker_instant_power(self.circuit)
         pwr_val = round(-pwr, 1) if isinstance(pwr, (int, float)) else None
-        self.my_setDriver('ST', pwr_val, 73)
-        self.my_setDriver('GV1', self.priority2ISY(self.span_panel.get_breaker_priority(self.circuit)), 25)
-        self.my_setDriver('GV2', self.openClose2ISY(self.span_panel.get_breaker_state(self.circuit)), 25)
-        self.my_setDriver('GV4', pwr_time, 151)
+        if pwr_val == 0.0:
+            pwr_val = 0.0
+
+        force_report = force or (pwr is not None)
+
+        self.my_setDriver('ST', pwr_val, 73, force=force_report)
+        self.my_setDriver('GV1', self.priority2ISY(self.span_panel.get_breaker_priority(self.circuit)), 25, force=force_report)
+        self.my_setDriver('GV2', self.openClose2ISY(self.span_panel.get_breaker_state(self.circuit)), 25, force=force_report)
         if pwr_time is not None:
-            self.my_setDriver('GV4', pwr_time, 151)
-        imp_wh, exp_wh, energy_time = self.span_panel.get_breaker_energy_info(self.circuit)
-        if type(imp_wh) in (int, float):
-            self.my_setDriver('GV5', round(imp_wh / 1000.0, 3), 33)
+            self.my_setDriver('GV4', pwr_time, 151, force=force_report)
+
+        prod_wh, cons_wh, energy_time = self.span_panel.get_breaker_energy_info(self.circuit)
+        force_energy = force or (energy_time is not None)
+
+        # GV5: Imported (consumed) energy in kWh
+        if isinstance(cons_wh, (int, float)):
+            self.my_setDriver('GV5', round(cons_wh / 1000.0, 3), 33, force=force_energy)
         else:
-            self.my_setDriver('GV5', None, 25)
-        if type(exp_wh) in (int, float):
-            self.my_setDriver('GV6', round(exp_wh / 1000.0, 3), 33)
+            self.my_setDriver('GV5', None, 25, force=force_energy)
+
+        # GV6: Exported (produced) energy in kWh
+        if isinstance(prod_wh, (int, float)):
+            self.my_setDriver('GV6', round(prod_wh / 1000.0, 3), 33, force=force_energy)
         else:
-            self.my_setDriver('GV6', None, 25)
+            self.my_setDriver('GV6', None, 25, force=force_energy)
+
         producedWh, consumerWh = self.span_panel.get1HourAverage(self.circuit)
-        
-        if type(producedWh) in (int, float) and type(consumerWh) in (int, float):            
-            self.my_setDriver('GV7', -round((producedWh- consumerWh),1), 119)
+        if isinstance(producedWh, (int, float)) and isinstance(consumerWh, (int, float)):            
+            self.my_setDriver('GV7', -round((producedWh - consumerWh), 1), 119, force=force_energy)
         else:
-            self.my_setDriver('GV7', None, 25)
+            self.my_setDriver('GV7', None, 25, force=force_energy)
+
         producedWh, consumerWh = self.span_panel.get24HourAverage(self.circuit)   
-        if type(producedWh) in (int, float) and type(consumerWh) in (int, float):                                  
-            self.my_setDriver('GV8', -round((producedWh- consumerWh),1), 119) 
+        if isinstance(producedWh, (int, float)) and isinstance(consumerWh, (int, float)):                                  
+            self.my_setDriver('GV8', -round((producedWh - consumerWh), 1), 119, force=force_energy) 
         else:
-            self.my_setDriver('GV8', None, 25)           
-        self.my_setDriver('GV9', energy_time, 151)  
+            self.my_setDriver('GV8', None, 25, force=force_energy)           
+
         if energy_time is not None:
-            self.my_setDriver('GV9', energy_time, 151)  
+            self.my_setDriver('GV9', energy_time, 151, force=force_energy)  
 
     def ISYupdate (self, command):
         logging.debug('ISY-update called')
-        #self.update_PW_data(self.site_id, 'all')
         self.update_data(force=True)
-        self.updateISYdrivers()
+        self.updateISYdrivers(force=True)
 
     def set_breaker(self, command):
         logging.debug(f'set_breaker called: {command}')
@@ -97,12 +105,10 @@ class udiSpanCircuitNode(udi_interface.Node):
             state = int(command['query']['openclose.uom25'])
             if (0 == state):
                 res =  self.span_panel.set_breaker_state(self.circuit, 'CLOSED')
-
             else:
                 res = self.span_panel.set_breaker_state(self.circuit, 'OPEN')
             if res:
-                self.my_setDriver('GV2', state, 25)
-
+                self.my_setDriver('GV2', state, 25, force=True)
 
     def set_priority(self, command):
         logging.debug(f'set_priority called: {command}')
@@ -115,9 +121,7 @@ class udiSpanCircuitNode(udi_interface.Node):
             else:
                 res = self.span_panel.set_breaker_priority(self.circuit, 'NOT_ESSENTIAL')
             if res:
-                self.my_setDriver('GV1', priority)   
-
-
+                self.my_setDriver('GV1', priority, 25, force=True)
 
     id = 'spancircuit'
     commands = {    
@@ -126,16 +130,15 @@ class udiSpanCircuitNode(udi_interface.Node):
                 #'PRIORITY'  : set_priority  Not workling yet - generates internal error
                 }
     '''
-        <st id="ST" editor="OPENCLOSE" /> breaker
-        <st id="GV1" editor="PRIORITY" /> priority
-        <st id="GV2" editor="KW" /> inst Power
-
-        <st id="GV4" editor="SECS" /> Time sinse result (sec)
+        <st id="ST" editor="W" /> Instantaneous Power (W)
+        <st id="GV1" editor="PRIORITY" /> Circuit Priority
+        <st id="GV2" editor="OPENCLOSE" /> Circuit Relay State
+        <st id="GV4" editor="UTIME" /> Power Measurement Time
         <st id="GV5" editor="KWH" /> Imported Energy
-        <st id="GV6" editor="KWH" />  Exported energy
-        <st id="GV7" editor="KWH" /> energy / hour
-        <st id="GV8" editor="KWH" />  energy / day       
-        <st id="GV9" editor="SECS" />  Time since result (sec)
+        <st id="GV6" editor="KWH" /> Exported Energy
+        <st id="GV7" editor="WH" /> Energy last hour
+        <st id="GV8" editor="WH" /> Energy last 24 hours
+        <st id="GV9" editor="UTIME" /> Energy Measurement Time
     '''
 
     drivers = [

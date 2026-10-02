@@ -321,7 +321,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
     ]
 
 
-def dynamic_profile_payload(version: str = "0.1.20") -> Dict[str, Any]:
+def dynamic_profile_payload(version: str = "0.1.21") -> Dict[str, Any]:
     return {
         "version": version,
         "delete": {

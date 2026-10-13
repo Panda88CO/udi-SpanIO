@@ -97,40 +97,77 @@ class udiSpanCircuitNode(udi_interface.Node):
         if energy_time is not None:
             self.my_setDriver('GV9', energy_time, 151, force=force_energy)  
 
+    def runCmd(self, command):
+        logging.debug(f'UI Call runCmd received on circuit {self.name} ({self.address}): {command}')
+        super().runCmd(command)
+
     def ISYupdate (self, command=None):
         logging.info(f'ISYupdate called for circuit {self.name} ({self.circuit})')
+        logging.debug(f'UI Call UPDATE (Update Breaker Data) on circuit {self.name} ({self.address}): command={command}, circuit_id={self.circuit}')
+        logging.debug(f'UI Call UPDATE: fetching breaker info for circuit {self.circuit}')
         self.update_data(force=True)
+        logging.debug(f'UI Call UPDATE: updating ISY drivers for circuit {self.name}')
         self.updateISYdrivers(force=True)
         logging.info(f'ISYupdate completed for circuit {self.name}')
+        logging.debug(f'UI Call UPDATE finished for circuit {self.name} ({self.address})')
 
     def set_breaker(self, command):
         logging.info(f'set_breaker called for circuit {self.name} ({self.circuit}): {command}')
+        logging.debug(f'UI Call OPENCLOSE (Set State) on circuit {self.name} ({self.address}): command={command}, circuit_id={self.circuit}')
         if 'query' in command:
-            state = int(command['query']['openclose.uom25'])
-            if (0 == state):
-                res =  self.span_panel.set_breaker_state(self.circuit, 'CLOSED')
-            else:
-                res = self.span_panel.set_breaker_state(self.circuit, 'OPEN')
-            if res:
-                self.my_setDriver('GV2', state, 25, force=True)
+            try:
+                state = int(command['query']['openclose.uom25'])
+                target_state_str = 'CLOSED' if state == 0 else 'OPEN'
+                logging.debug(f'UI Call OPENCLOSE parsed target state: {state} ({target_state_str}) for circuit {self.circuit}')
+                if (0 == state):
+                    res = self.span_panel.set_breaker_state(self.circuit, 'CLOSED')
+                else:
+                    res = self.span_panel.set_breaker_state(self.circuit, 'OPEN')
+                logging.debug(f'UI Call OPENCLOSE set_breaker_state result: {res} for circuit {self.circuit}')
+                if res:
+                    logging.debug(f'UI Call OPENCLOSE updating GV2 to {state} on circuit {self.name}')
+                    self.my_setDriver('GV2', state, 25, force=True)
+                else:
+                    logging.error(f'UI Call OPENCLOSE failed to set state {target_state_str} on circuit {self.circuit}')
+            except (KeyError, ValueError, TypeError) as e:
+                logging.error(f'UI Call OPENCLOSE error parsing command query {command}: {e}')
+        else:
+            logging.error(f'UI Call OPENCLOSE missing query dict in command: {command}')
+        logging.debug(f'UI Call OPENCLOSE finished for circuit {self.name} ({self.address})')
 
     def set_priority(self, command):
         logging.info(f'set_priority called for circuit {self.name} ({self.circuit}): {command}')
+        logging.debug(f'UI Call PRIORITY (Set Priority) on circuit {self.name} ({self.address}): command={command}, circuit_id={self.circuit}')
         if 'query' in command:
-            priority = int(command['query']['priority.uom25'])
-            if (0 == priority):
-                res =  self.span_panel.set_breaker_priority(self.circuit, 'MUST_HAVE')
-            elif (1 == priority):
-                res =  self.span_panel.set_breaker_priority(self.circuit, 'NICE_TO_HAVE')
-            else:
-                res = self.span_panel.set_breaker_priority(self.circuit, 'NOT_ESSENTIAL')
-            if res:
-                self.my_setDriver('GV1', priority, 25, force=True)
+            try:
+                priority = int(command['query']['priority.uom25'])
+                priority_map = {0: 'MUST_HAVE', 1: 'NICE_TO_HAVE', 2: 'NOT_ESSENTIAL'}
+                target_prio = priority_map.get(priority, 'NOT_ESSENTIAL')
+                logging.debug(f'UI Call PRIORITY parsed target priority: {priority} ({target_prio}) for circuit {self.circuit}')
+                res = self.span_panel.set_breaker_priority(self.circuit, target_prio)
+                logging.debug(f'UI Call PRIORITY set_breaker_priority result: {res} for circuit {self.circuit}')
+                if res:
+                    logging.debug(f'UI Call PRIORITY updating GV1 to {priority} on circuit {self.name}')
+                    self.my_setDriver('GV1', priority, 25, force=True)
+                else:
+                    logging.error(f'UI Call PRIORITY failed to set priority {target_prio} on circuit {self.circuit}')
+            except (KeyError, ValueError, TypeError) as e:
+                logging.error(f'UI Call PRIORITY error parsing command query {command}: {e}')
+        else:
+            logging.error(f'UI Call PRIORITY missing query dict in command: {command}')
+        logging.debug(f'UI Call PRIORITY finished for circuit {self.name} ({self.address})')
+
+    def query(self, command=None):
+        logging.debug(f'UI Call QUERY received on circuit {self.name} ({self.address}): command={command}')
+        self.update_data(force=True)
+        self.updateISYdrivers(force=True)
+        logging.debug(f'UI Call QUERY completed on circuit {self.name}')
 
     id = 'spancircuit'
     commands = {    
                 'UPDATE'    : ISYupdate, 
                 'OPENCLOSE' : set_breaker,
+                'QUERY'     : query,
                 #'PRIORITY'  : set_priority  Not workling yet - generates internal error
                 }
     '''

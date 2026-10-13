@@ -188,26 +188,47 @@ class udiSpanPanelNode(udi_interface.Node):
             self.my_setDriver('GV7', None, 25, force=force)
 
 
+    def runCmd(self, command):
+        logging.debug(f'UI Call runCmd received on panel {self.name} ({self.address}): {command}')
+        super().runCmd(command)
+
     def ISYupdate(self, command=None):
         logging.info(f'ISYupdate called for panel {self.name} ({self.span_ipadr})')
+        logging.debug(f'UI Call UPDATE (Update Panels Data) on panel {self.name} ({self.address}): command={command}')
         if not self.circuit_access:
             logging.info(f'Subnodes missing in ISYupdate for {self.name}; attempting creation')
+            logging.debug(f'UI Call UPDATE: attempting create_subnodes() because circuit_access is empty')
             if not hasattr(self, 'span_panel') or self.span_panel is None:
                 self.span_panel = SpanAccess(self.span_ipadr, self.token, battery_backup=self.battery_backup)
             self.create_subnodes()
             if self.circuit_access:
                 self.node_ok = True
+                logging.debug(f'UI Call UPDATE: subnodes created successfully ({len(self.circuit_access)} circuits)')
+            else:
+                logging.debug('UI Call UPDATE: subnodes creation failed or panel unreachable')
+        logging.debug(f'UI Call UPDATE: refreshing telemetry data for panel {self.name} ({self.span_ipadr})')
         self.update_data()
+        logging.debug(f'UI Call UPDATE: updating ISY drivers for panel {self.name}')
         self.updateISYdrivers(force=True)
+        logging.debug(f'UI Call UPDATE: updating ISY drivers across {len(self.circuit_access)} circuit subnodes')
         for circuit_node in self.circuit_access.values():
             circuit_node.updateISYdrivers(force=True)
         logging.info(f'ISYupdate completed for panel {self.name}: updated panel and {len(self.circuit_access)} circuits')
+        logging.debug(f'UI Call UPDATE finished for panel {self.name} ({self.address})')
+
+    def query(self, command=None):
+        logging.debug(f'UI Call QUERY received on panel {self.name} ({self.address}): command={command}')
+        self.update_data()
+        self.updateISYdrivers(force=True)
+        logging.debug(f'UI Call QUERY completed on panel {self.name}')
 
  
 
     id = 'spanpanel'
-    commands = { 'UPDATE': ISYupdate, 
-                }
+    commands = { 
+        'UPDATE': ISYupdate,
+        'QUERY': query,
+    }
  
     drivers = [
             {'driver': 'ST', 'value': 0, 'uom': 73},         

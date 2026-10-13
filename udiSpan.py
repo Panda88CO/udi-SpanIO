@@ -344,16 +344,33 @@ class SPANController(udi_interface.Node):
         pass
 
 
+    def runCmd(self, command):
+        logging.debug(f'UI Call runCmd received on controller {self.name} ({self.address}): {command}')
+        super().runCmd(command)
+
     def ISYupdate (self, command=None):
         logging.info('ISYupdate called on controller')
+        logging.debug(f'UI Call UPDATE (Update System Data) on controller {self.name} ({self.address}) with command={command}')
         for ip, panel in self.span_panel.items():
             if panel and hasattr(panel, 'ISYupdate'):
+                logging.debug(f'UI Call UPDATE cascading to panel node {ip} ({panel.name})')
                 panel.ISYupdate(command)
+            else:
+                logging.debug(f'Panel {ip} not available or has no ISYupdate method')
         logging.info(f'ISYupdate completed on controller across {len(self.span_panel)} panels')
+        logging.debug(f'UI Call UPDATE completed on controller {self.name}')
+
+    def query(self, command=None):
+        logging.debug(f'UI Call QUERY received on controller {self.name} ({self.address}): command={command}')
+        self.reportDrivers()
+        logging.debug(f'UI Call QUERY completed on controller {self.name}')
 
 
     id = 'controller'
-    commands = { 'UPDATE': ISYupdate }
+    commands = { 
+        'UPDATE': ISYupdate,
+        'QUERY': query,
+    }
     drivers = [
             {'driver': 'ST', 'value':0, 'uom':25},
             {'driver': 'GV1', 'value':0, 'uom':56},

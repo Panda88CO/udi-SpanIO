@@ -273,6 +273,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
                 {"id": "GV2", "editor": "W", "name": "Instant Feedthrough Power"},
                 {"id": "GV3", "editor": "GRIDSTATE", "name": "Grid State"},
                 {"id": "GV4", "editor": "GRIDSTATUS", "name": "Grid Status"},
+                {"id": "GV5", "editor": "UTIME", "name": "Panel Update Time"},
                 {"id": "GV7", "editor": "PERCENT", "name": "Backup Battery Capacity"},
             ],
             "cmds": {

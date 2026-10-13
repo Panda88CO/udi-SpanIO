@@ -79,6 +79,7 @@ class SpanAccess(object):
             code, panel = self.getSpanPanelInfo()
             if code == 200 and isinstance(panel, dict):
                 self.span_data['panel_info'] = panel
+                self.span_data['panel_update_time'] = int(time.time())
                 if self.SAVE_TO_FILE:
                     with open('Panel_data.json', 'a+') as f:
                         current_time = time.localtime()
@@ -369,6 +370,21 @@ class SpanAccess(object):
         try:
             return (self.span_data.get('panel_info') or {}).get('feedthroughPowerW')
         except Exception as e:
+            return None    
+
+    def get_panel_update_time(self):
+        logging.debug('get_panel_update_time')
+        try:
+            panel = self.span_data.get('panel_info') or {}
+            for key in ('instantPowerUpdateTimeS', 'updateTime', 'timestampS', 'timeS'):
+                val = panel.get(key)
+                if val is not None:
+                    t = self._parse_time(val)
+                    if t is not None and t > 1000000000:
+                        return t
+            return self.span_data.get('panel_update_time')
+        except Exception as e:
+            logging.debug(f'get_panel_update_time error: {e}')
             return None    
 
     def get_breaker_state(self, breaker_id):

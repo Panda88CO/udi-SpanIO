@@ -181,6 +181,9 @@ class udiSpanPanelNode(udi_interface.Node):
         self.my_setDriver('GV2', round(ft_pwr, 1) if isinstance(ft_pwr, (int, float)) else None, 73, force=force)
         self.my_setDriver('GV3', self.gridState2ISY(self.span_panel.get_grid_state()), 25, force=force)
         self.my_setDriver('GV4', self.gridStatus2ISY(self.span_panel.get_dms_state()), 25, force=force)
+        panel_time = self.span_panel.get_panel_update_time()
+        if panel_time is not None:
+            self.my_setDriver('GV5', panel_time, 151, force=force)
         if self.battery_backup:
             bat = self.span_panel.get_battery_percentage()
             self.my_setDriver('GV7', int(bat) if isinstance(bat, (int, float)) else None, 51, force=force)   
@@ -237,8 +240,7 @@ class udiSpanPanelNode(udi_interface.Node):
             {'driver': 'GV2', 'value': 0, 'uom': 73},  
             {'driver': 'GV3', 'value': 0, 'uom': 25}, 
             {'driver': 'GV4', 'value': 0, 'uom': 25},  
-            #{'driver': 'GV5', 'value': 0, 'uom': 33},  
-            #{'driver': 'GV6', 'value': 0, 'uom': 33}, 
+            {'driver': 'GV5', 'value': 0, 'uom': 151},  
             {'driver': 'GV7', 'value': 0, 'uom': 51},  
                                           
             ]

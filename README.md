@@ -19,6 +19,7 @@ The node server connects locally to the SPAN panel using the local SPAN REST API
   - `GV2`: Instant Feedthrough Power (Watts)
   - `GV3`: Grid State (`DSM_GRID_UP` / `DSM_GRID_DOWN`)
   - `GV4`: Grid Status (`ON_GRID` / `OFF_GRID`)
+  - `GV5`: Panel Update Timestamp (Epoch seconds)
   - `GV7`: Backup Battery Capacity (%, optional)
   - Manual data update command
 - **Circuit / Breaker Sub-Nodes (per Circuit)**:

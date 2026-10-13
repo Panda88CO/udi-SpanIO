@@ -13,6 +13,7 @@ ST-nlsspanpanel-GV1-NAME = Main Panel Breaker State
 ST-nlsspanpanel-GV2-NAME = Instant Feedthrough Power
 ST-nlsspanpanel-GV3-NAME = Grid State
 ST-nlsspanpanel-GV4-NAME = Grid Status
+ST-nlsspanpanel-GV5-NAME = Panel Update Time
 ST-nlsspanpanel-GV7-NAME = Backup Battery Capacity
 CMD-nlsspanpanel-UPDATE-NAME = Update Panels Data
 

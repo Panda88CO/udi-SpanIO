@@ -25,6 +25,7 @@
          <st id="GV2" editor="W" />
          <st id="GV3" editor="GRIDSTATE" />
          <st id="GV4" editor="GRIDSTATUS" />         
+         <st id="GV5" editor="UTIME" />
          <st id="GV7" editor="PERCENT" />
       </sts>
       <cmds>

@@ -97,13 +97,14 @@ class udiSpanCircuitNode(udi_interface.Node):
         if energy_time is not None:
             self.my_setDriver('GV9', energy_time, 151, force=force_energy)  
 
-    def ISYupdate (self, command):
-        logging.debug('ISY-update called')
+    def ISYupdate (self, command=None):
+        logging.info(f'ISYupdate called for circuit {self.name} ({self.circuit})')
         self.update_data(force=True)
         self.updateISYdrivers(force=True)
+        logging.info(f'ISYupdate completed for circuit {self.name}')
 
     def set_breaker(self, command):
-        logging.debug(f'set_breaker called: {command}')
+        logging.info(f'set_breaker called for circuit {self.name} ({self.circuit}): {command}')
         if 'query' in command:
             state = int(command['query']['openclose.uom25'])
             if (0 == state):
@@ -114,7 +115,7 @@ class udiSpanCircuitNode(udi_interface.Node):
                 self.my_setDriver('GV2', state, 25, force=True)
 
     def set_priority(self, command):
-        logging.debug(f'set_priority called: {command}')
+        logging.info(f'set_priority called for circuit {self.name} ({self.circuit}): {command}')
         if 'query' in command:
             priority = int(command['query']['priority.uom25'])
             if (0 == priority):

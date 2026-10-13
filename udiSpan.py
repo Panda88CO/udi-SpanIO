@@ -17,7 +17,7 @@ except ImportError:
     logging.basicConfig(level=30)
 
 
-VERSION = '0.1.21'
+VERSION = '0.1.22'
 class SPANController(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, random_string, mask2key, heartbeat, bool2ISY, my_setDriver
 
@@ -344,11 +344,12 @@ class SPANController(udi_interface.Node):
         pass
 
 
-    def ISYupdate (self, command):
-        logging.debug('ISY-update called on controller')
+    def ISYupdate (self, command=None):
+        logging.info('ISYupdate called on controller')
         for ip, panel in self.span_panel.items():
             if panel and hasattr(panel, 'ISYupdate'):
                 panel.ISYupdate(command)
+        logging.info(f'ISYupdate completed on controller across {len(self.span_panel)} panels')
 
 
     id = 'controller'

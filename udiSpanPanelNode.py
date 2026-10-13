@@ -32,6 +32,7 @@ class udiSpanPanelNode(udi_interface.Node):
         self.name = name
         self.node = self
         self.circuit_access = {}
+        self.span_panel = None
         self.n_queue = []
         self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
         self.poly.subscribe(self.poly.START, self.start, address)
@@ -42,28 +43,39 @@ class udiSpanPanelNode(udi_interface.Node):
         time.sleep(0.1)
         
     def start(self):   
-        logging.debug('StartSpanIO Panel Node')
-        if self.node_ok or self._starting:
+        logging.info(f'StartSpanIO Panel Node {self.name}')
+        if self.node_ok:
             logging.debug('Span Panel Node already initialized')
             return
         self._starting = True
-        logging.info('Adding SPAN panel sub-nodes')
-        self.span_panel = SpanAccess(self.span_ipadr, self.token, battery_backup=self.battery_backup)
+        if not hasattr(self, 'span_panel') or self.span_panel is None:
+            self.span_panel = SpanAccess(self.span_ipadr, self.token, battery_backup=self.battery_backup)
         self.update_data()        
-        self.create_subnodes()
+        created = self.create_subnodes()
         self.updateISYdrivers(force=True)
-        self.node_ok = True
+        if created and self.circuit_access:
+            self.node_ok = True
+            logging.info(f'Span Panel Node {self.name} successfully initialized with {len(self.circuit_access)} circuits')
+        else:
+            self.node_ok = False
+            logging.warning(f'Span Panel Node {self.name} sub-node creation not completed; will retry on next poll')
+        self._starting = False
 
 
     def create_subnodes(self):
-        logging.debug(f'create_subnodes - {self.name}')
+        if self.circuit_access:
+            logging.debug(f'create_subnodes - {self.name}: already created ({len(self.circuit_access)} circuits)')
+            return True
+        logging.info(f'create_subnodes - {self.name}')
+        if not hasattr(self, 'span_panel') or self.span_panel is None:
+            self.span_panel = SpanAccess(self.span_ipadr, self.token, battery_backup=self.battery_backup)
         cached_circuits = self.span_panel.span_data.get('circuit_info')
         if isinstance(cached_circuits, dict) and cached_circuits:
             code, self.circuits = 200, cached_circuits
         else:
             code, self.circuits = self.span_panel.getSpanCircuitsInfo()
         #logging.debug(f'Panel {self.span_ipadr} Circuits info: {code} , {self.circuits }')            
-        if code == 200 and isinstance(self.circuits, dict):
+        if code == 200 and isinstance(self.circuits, dict) and self.circuits:
             for circuit, circuit_data in self.circuits.items():
                 if not isinstance(circuit_data, dict):
                     continue
@@ -79,9 +91,26 @@ class udiSpanPanelNode(udi_interface.Node):
                 if not circuit_node.node_ok:
                     circuit_node.start()
                 time.sleep(0.1)
+            logging.info(f'Successfully created {len(self.circuit_access)} circuit sub-nodes for {self.name}')
+            return bool(self.circuit_access)
+        else:
+            logging.warning(f'Failed to get circuit info for {self.name} (code={code}); will retry later')
+            return False
                                                                 
     def systemPoll(self, pollList):
-        logging.info(f'systemPoll {self.span_ipadr }')
+        logging.info(f'systemPoll {self.span_ipadr}')
+        if not self.circuit_access or not self.node_ok:
+            logging.info(f'Subnodes missing for panel {self.name}; attempting creation in systemPoll')
+            if not hasattr(self, 'span_panel') or self.span_panel is None:
+                self.span_panel = SpanAccess(self.span_ipadr, self.token, battery_backup=self.battery_backup)
+            self.update_data()
+            if self.create_subnodes() and self.circuit_access:
+                self.node_ok = True
+                self.updateISYdrivers(force=True)
+                for circuit_node in self.circuit_access.values():
+                    circuit_node.updateISYdrivers(force=True)
+                return
+
         if self.node_ok:
             if 'longPoll' in pollList:
                 #pass
@@ -99,25 +128,32 @@ class udiSpanPanelNode(udi_interface.Node):
 
 
     def update_critical_data(self):
-        logging.debug(f'update_critical_data {self.span_ipadr }')
-        self.span_panel.update_critical_span_data()
+        logging.debug(f'update_critical_data {self.span_ipadr}')
+        if hasattr(self, 'span_panel') and self.span_panel:
+            self.span_panel.update_critical_span_data()
 
     def shortPoll(self):
-        logging.debug(f'shortPoll {self.span_ipadr }')
+        logging.debug(f'shortPoll {self.span_ipadr}')
+        if not self.circuit_access:
+            self.create_subnodes()
         self.update_critical_data()
         self.updateISYdrivers(force=True)
-        for circuit in self.circuit_access:
-            self.circuit_access[circuit].updateISYdrivers(force=True)
+        for circuit_node in self.circuit_access.values():
+            circuit_node.updateISYdrivers(force=True)
 
     def longPoll(self):
-        logging.debug(f'longPoll {self.span_ipadr }')
+        logging.debug(f'longPoll {self.span_ipadr}')
+        if not self.circuit_access:
+            self.create_subnodes()
         self.update_data()   
         self.updateISYdrivers(force=True)
-        for circuit in self.circuit_access:
-            self.circuit_access[circuit].updateISYdrivers(force=True)
+        for circuit_node in self.circuit_access.values():
+            circuit_node.updateISYdrivers(force=True)
 
     def update_data(self):
-        self.span_panel.update_span_data()
+        logging.debug(f'update_data {self.span_ipadr}')
+        if hasattr(self, 'span_panel') and self.span_panel:
+            self.span_panel.update_span_data()
                  
 
     def stop(self):
@@ -134,7 +170,9 @@ class udiSpanPanelNode(udi_interface.Node):
 
     def updateISYdrivers(self, force=False):
         logging.debug(f'Span Panel updateISYdrivers force={force}')
-        #logging.debug(f'data: {self.span_panel.span_data}')
+        if not hasattr(self, 'span_panel') or self.span_panel is None:
+            logging.warning(f'updateISYdrivers called on {self.name} before span_panel initialized')
+            return
         grid_pwr = self.span_panel.get_instant_grid_power()
         self.my_setDriver('ST', round(grid_pwr, 1) if isinstance(grid_pwr, (int, float)) else None, 73, force=force)
         self.my_setDriver('GV0', self.openClose2ISY(self.span_panel.get_panel_door_state()), 25, force=force)
@@ -150,13 +188,20 @@ class udiSpanPanelNode(udi_interface.Node):
             self.my_setDriver('GV7', None, 25, force=force)
 
 
-    def ISYupdate (self, command):
-        logging.debug('ISY-update called')
-        #self.update_PW_data(self.site_id, 'all')
+    def ISYupdate(self, command=None):
+        logging.info(f'ISYupdate called for panel {self.name} ({self.span_ipadr})')
+        if not self.circuit_access:
+            logging.info(f'Subnodes missing in ISYupdate for {self.name}; attempting creation')
+            if not hasattr(self, 'span_panel') or self.span_panel is None:
+                self.span_panel = SpanAccess(self.span_ipadr, self.token, battery_backup=self.battery_backup)
+            self.create_subnodes()
+            if self.circuit_access:
+                self.node_ok = True
         self.update_data()
         self.updateISYdrivers(force=True)
-        for circuit in self.circuit_access:
-            self.circuit_access[circuit].updateISYdrivers(force=True)
+        for circuit_node in self.circuit_access.values():
+            circuit_node.updateISYdrivers(force=True)
+        logging.info(f'ISYupdate completed for panel {self.name}: updated panel and {len(self.circuit_access)} circuits')
 
  
 

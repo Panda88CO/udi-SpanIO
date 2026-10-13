@@ -17,9 +17,11 @@ except ImportError:
 class SpanAccess(object):
     from  udiLib import random_string
 
-    def __init__ (self, IPaddress, token):
+    def __init__ (self, IPaddress, token, battery_backup=True):
         self.IP_address = IPaddress
         self.accessToken = token
+        self.battery_backup = battery_backup
+        self.session = requests.Session()
         
         self.yourApiEndpoint = f'http://{self.IP_address}/api/v1'
         #self.STATUS      = '/status'
@@ -31,6 +33,13 @@ class SpanAccess(object):
         self.accum_data = {}
         self.SAVE_TO_FILE = False
         self.load_accum_data()
+
+    def close(self):
+        if hasattr(self, 'session') and self.session:
+            try:
+                self.session.close()
+            except Exception:
+                pass
 
     @staticmethod
     def _parse_time(val):
@@ -56,10 +65,10 @@ class SpanAccess(object):
     def update_panel_status(self):
         try:
             code, status = self.getSpanStatusInfo()
-            if code == 200:
+            if code == 200 and isinstance(status, dict):
                 self.span_data['status'] = status                
             else:
-                self.span_data['status'] = None
+                self.span_data.setdefault('status', None)
             return(code)
         except Exception as e:
             logging.error(f'EXCEPTION: update_panel_status: {e}')
@@ -68,23 +77,16 @@ class SpanAccess(object):
     def update_panel_info(self):
         try:
             code, panel = self.getSpanPanelInfo()
-            if code == 200:
+            if code == 200 and isinstance(panel, dict):
                 self.span_data['panel_info'] = panel
                 if self.SAVE_TO_FILE:
-                    f = open('Panel_data.json', 'a+')
-                    current_time = time.localtime()
-                    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
-                    f.write('\n\v'+time_string)
-                    f.write(str(json.dumps( panel, indent=4, separators=(',', ': '))))
-                    f.close()
-                    #f = open(str(self.IP_address)+'.cvs', 'w')
-                    #f.write('breaker, update_time,consumedWh,producedWh\n')
-                    #for breaker in self.accum_data:
-                    #    for data_time  in self.accum_data[breaker]:
-                    #        f.write(str(breaker)+','+str(data_time)+','+str(self.accum_data[breaker][data_time]['consumedWh'])+','+str(self.accum_data[breaker][data_time]['producedWh'])+'\n')
-                    #f.close()
+                    with open('Panel_data.json', 'a+') as f:
+                        current_time = time.localtime()
+                        time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+                        f.write('\n\v'+time_string)
+                        f.write(str(json.dumps( panel, indent=4, separators=(',', ': '))))
             else:
-                self.span_data['panel_info'] = None
+                self.span_data.setdefault('panel_info', None)
             return(code )
         except Exception as e:
             logging.error(f'EXCEPTION: update_panel_info: {e}')
@@ -93,18 +95,16 @@ class SpanAccess(object):
     def update_battery_info(self):
         try:
             code, battery = self.getSpanBatteryInfo()
-            if code == 200:
+            if code == 200 and isinstance(battery, dict):
                 self.span_data['battery_info'] = battery
                 if self.SAVE_TO_FILE:
-                    f = open('battery_data.json', 'a+')
-                    current_time = time.localtime()
-                    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
-                    f.write('\n\v'+time_string)                    
-                    f.write(str(json.dumps( battery, indent=4, separators=(',', ': '))))
-                    f.close()
-               
+                    with open('battery_data.json', 'a+') as f:
+                        current_time = time.localtime()
+                        time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+                        f.write('\n\v'+time_string)                    
+                        f.write(str(json.dumps( battery, indent=4, separators=(',', ': '))))
             else:
-                self.span_data['battery_info'] = None
+                self.span_data.setdefault('battery_info', None)
             return(code )
         except Exception as e:
             logging.error(f'EXCEPTION: update_battery_info: {e}')
@@ -114,17 +114,16 @@ class SpanAccess(object):
     def update_circuit_info(self):
         try:
             code, circuits = self.getSpanCircuitsInfo()
-            if code == 200:
+            if code == 200 and isinstance(circuits, dict):
                 self.span_data['circuit_info'] = circuits
                 if self.SAVE_TO_FILE:
-                    f = open('circuitdata.json', 'a+')
-                    current_time = time.localtime()
-                    time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
-                    f.write('\n\v'+time_string)                    
-                    f.write(str(json.dumps( circuits, indent=4, separators=(',', ': '))))
-                    f.close()
+                    with open('circuitdata.json', 'a+') as f:
+                        current_time = time.localtime()
+                        time_string = time.strftime("%Y-%m-%d %H:%M:%S", current_time)
+                        f.write('\n\v'+time_string)                    
+                        f.write(str(json.dumps( circuits, indent=4, separators=(',', ': '))))
             else:
-                self.span_data['circuit_info'] =  None
+                self.span_data.setdefault('circuit_info', None)
             return(code )
         except Exception as e:
             logging.error(f'EXCEPTION: update_circuit_info: {e}')
@@ -244,7 +243,7 @@ class SpanAccess(object):
             circuit_entry = (self.span_data.get('circuit_info') or {}).get(breaker_id)
             if isinstance(circuit_entry, dict):
                 dt_1h = update_time - t_1hour
-                if (dt_1h >= 60 or (dt_1h > 0 and hour_ok)) and prod_1_hour is not None and cons_1_hour is not None:
+                if dt_1h > 0 and hour_ok and prod_1_hour is not None and cons_1_hour is not None:
                     circuit_entry['prod_1hour'] = (produced_energy - prod_1_hour) * 3600 / dt_1h
                     circuit_entry['cons_1hour'] = (consumed_energy - cons_1_hour) * 3600 / dt_1h
                 else:
@@ -252,7 +251,7 @@ class SpanAccess(object):
                     circuit_entry['cons_1hour'] = None
 
                 dt_24h = update_time - t_24hour
-                if (dt_24h >= 60 or (dt_24h > 0 and day_ok)) and prod_24_hour is not None and cons_24_hour is not None:
+                if dt_24h > 0 and day_ok and prod_24_hour is not None and cons_24_hour is not None:
                     circuit_entry['prod_24hour'] = (produced_energy - prod_24_hour) * 24 * 3600 / dt_24h
                     circuit_entry['cons_24hour'] = (consumed_energy - cons_24_hour) * 24 * 3600 / dt_24h
                 else:
@@ -277,11 +276,12 @@ class SpanAccess(object):
             code, breaker_info = self.getSpanBreakerInfo(breaker_id)
             if not isinstance(self.span_data.get('circuit_info'), dict):
                 self.span_data['circuit_info'] = {}
-            if code == 200:
+            if code == 200 and isinstance(breaker_info, dict):
                 self.span_data['circuit_info'][breaker_id] = breaker_info
                 self.update_Accum_EnergyBreaker(breaker_id)
+                self.save_accum_data()
             else:
-                self.span_data['circuit_info'][breaker_id] = None
+                self.span_data['circuit_info'].setdefault(breaker_id, None)
             return code
         except Exception as e:
             logging.error(f'EXCEPTION: update_panel_breaker_info: {e}')
@@ -294,8 +294,9 @@ class SpanAccess(object):
         #logging.debug('panel status {}'.format(self.span_data['status']))
         self.update_panel_info()
         logging.debug('panel info {}'.format(self.span_data.get('panel_info')))
-        self.update_battery_info()
-        logging.debug('battery info {}'.format(self.span_data.get('battery_info')))
+        if self.battery_backup:
+            self.update_battery_info()
+            logging.debug('battery info {}'.format(self.span_data.get('battery_info')))
         self.update_circuit_info()
         logging.debug('circuit info {}'.format(self.span_data.get('circuit_info')))        
         self.update_Accum_Energy(None, True)
@@ -307,8 +308,9 @@ class SpanAccess(object):
         logging.debug('panel status {}'.format(self.span_data.get('status')))
         self.update_panel_info()
         logging.debug('panel info {}'.format(self.span_data.get('panel_info')))
-        self.update_battery_info()
-        logging.debug('battery info {}'.format(self.span_data.get('battery_info')))
+        if self.battery_backup:
+            self.update_battery_info()
+            logging.debug('battery info {}'.format(self.span_data.get('battery_info')))
         self.update_circuit_info()
         logging.debug('circuit info {}'.format(self.span_data.get('circuit_info')))        
         self.update_Accum_Energy(None, True)
@@ -413,19 +415,21 @@ class SpanAccess(object):
     def set_breaker_state(self, breaker_id, state):
         logging.debug(f'set_breaker_state {breaker_id} {state}')
         code, return_data = self.setBreakerState(breaker_id, state)
-        if code == 200:
+        if code == 200 and isinstance(return_data, dict):
             if not isinstance(self.span_data.get('circuit_info'), dict):
                 self.span_data['circuit_info'] = {}
             self.span_data['circuit_info'][breaker_id] = return_data
+            self.update_Accum_EnergyBreaker(breaker_id)
         return code == 200
 
     def set_breaker_priority(self, breaker_id, priority):
         logging.debug(f'set_breaker_priority {breaker_id} {priority}')
         code, return_data = self.setBreakerPriority(breaker_id, priority)
-        if code == 200:
+        if code == 200 and isinstance(return_data, dict):
             if not isinstance(self.span_data.get('circuit_info'), dict):
                 self.span_data['circuit_info'] = {}
             self.span_data['circuit_info'][breaker_id] = return_data
+            self.update_Accum_EnergyBreaker(breaker_id)
         return code == 200
 
 
@@ -443,7 +447,7 @@ class SpanAccess(object):
             return None, None
 
     def setBreakerPriority(self, id, priority):
-        logging.debug(f'setBreakerState {id}  {priority}')
+        logging.debug(f'setBreakerPriority {id}  {priority}')
         if priority in ['MUST_HAVE', 'NICE_TO_HAVE', 'NOT_ESSENTIAL' ]:
             data =  {
                     "priorityIn":{"priority":str(priority)}
@@ -465,9 +469,10 @@ class SpanAccess(object):
         logging.debug(f'getSpanCircuitsInfo ({self.IP_address})')        
         code, circuits = self._callApi('GET', '/circuits')
         if code == 200 and isinstance(circuits, dict):
-            return(code, circuits.get('circuits', {}))
+            circuit_map = circuits.get('circuits', {})
+            return(code, circuit_map if isinstance(circuit_map, dict) else {})
         else:
-            return(code, circuits)
+            return(code, None)
     
 
     def getSpanBreakerInfo(self, id):
@@ -497,10 +502,6 @@ class SpanAccess(object):
         return(code, clients)
 
 
-
-  
-
-
     def _callApi(self, method='GET', url=None, body=None):
         # When calling an API, get the access token (it will be refreshed if necessary)
         try:
@@ -517,27 +518,35 @@ class SpanAccess(object):
             logging.error('url is required')
             return None, None
 
+        method = str(method or 'GET').upper()
         completeUrl = self.yourApiEndpoint + url
 
         headers = {
-            'Authorization': f"Bearer { accessToken }"
+            'Authorization': f"Bearer {accessToken}",
+            'Accept': 'application/json',
         }
 
-        if method in [ 'PATCH', 'POST'] and body is None:
-            logging.error(f"body is required when using { method } { completeUrl }")
+        if method in ['PATCH', 'POST', 'PUT'] and body is None:
+            logging.error(f"body is required when using {method} {completeUrl}")
+            return None, None
         #logging.debug(' call info url={}, header= {}, body = {}'.format(completeUrl, headers, body))
 
+        response = None
+        http_client = getattr(self, 'session', None) or requests
         try:
             if method == 'GET':
-                response = requests.get(completeUrl, headers=headers, timeout=10)
+                response = http_client.get(completeUrl, headers=headers, timeout=10)
             elif method == 'DELETE':
-                response = requests.delete(completeUrl, headers=headers, timeout=10)
+                response = http_client.delete(completeUrl, headers=headers, timeout=10)
             elif method == 'PATCH':
-                response = requests.patch(completeUrl, headers=headers, json=body, timeout=10)
+                response = http_client.patch(completeUrl, headers=headers, json=body, timeout=10)
             elif method == 'POST':
-                response = requests.post(completeUrl, headers=headers, json=body, timeout=10)
+                response = http_client.post(completeUrl, headers=headers, json=body, timeout=10)
             elif method == 'PUT':
-                response = requests.put(completeUrl, headers=headers, timeout=10)
+                response = http_client.put(completeUrl, headers=headers, json=body, timeout=10)
+            else:
+                logging.error(f"Unsupported HTTP method: {method}")
+                return None, None
 
             response.raise_for_status()
             try:
@@ -547,11 +556,14 @@ class SpanAccess(object):
 
         except requests.exceptions.HTTPError as error:
             status_code = getattr(response, 'status_code', None)
-            logging.error(f"Call { method } { completeUrl } failed HTTP error: { error }")
-            return status_code,  error
+            if status_code in (401, 403):
+                logging.error(f"Authentication failed ({status_code}) for {completeUrl}: token may be invalid or expired")
+            else:
+                logging.error(f"Call {method} {completeUrl} failed HTTP error: {error}")
+            return status_code, error
         except requests.exceptions.RequestException as error:
-            logging.error(f"Call { method } { completeUrl } failed request exception: { error }")
+            logging.error(f"Call {method} {completeUrl} failed request exception: {error}")
             return None, error
         except Exception as error:
-            logging.error(f"Call { method } { completeUrl } failed: { error }")
+            logging.error(f"Call {method} {completeUrl} failed: {error}")
             return None, error

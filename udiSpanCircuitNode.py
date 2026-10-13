@@ -16,12 +16,14 @@ class udiSpanCircuitNode(udi_interface.Node):
     from  udiLib import openClose2ISY, priority2ISY, mask2key, bool2ISY, round2ISY, my_setDriver
 
     def __init__(self, polyglot, primary, address, name, span_access, circuit):
+        super().__init__(polyglot, primary, address, name)
         logging.info(f'_init_ Span Circuit Node {name}')
         self.poly = polyglot
         self.span_panel = span_access
         self.circuit = circuit
         
         self.node_ok = False
+        self._starting = False
         self.address = address
         self.primary = primary
         self.name = name
@@ -30,9 +32,10 @@ class udiSpanCircuitNode(udi_interface.Node):
 
     def start(self):   
         logging.debug(f'Start Span Circuit node {self.name}')
-        if self.node_ok:
+        if self.node_ok or self._starting:
             logging.debug(f'Span Circuit node {self.name} already initialized')
             return
+        self._starting = True
         self.node = self.poly.getNode(self.address) or self
         self.update_data()
         self.updateISYdrivers(force=True)

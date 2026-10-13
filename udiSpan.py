@@ -53,6 +53,7 @@ class SPANController(udi_interface.Node):
         self.poly.subscribe(self.poly.LOGLEVEL, self.handleLevelChange)
         self.poly.subscribe(self.poly.NOTICES, self.handleNotices)
         self.poly.subscribe(self.poly.POLL, self.systemPoll)
+        self.poly.subscribe(self.poly.START, self.start, 'controller')
 
         #logging.debug('self.address : ' + str(self.address))
         #logging.debug('self.name :' + str(self.name))
@@ -71,8 +72,6 @@ class SPANController(udi_interface.Node):
         self.node = self.poly.getNode(self.address) or self
         logging.debug('Node info: {}'.format(self.node))
         self.my_setDriver('ST', 1)
-        logging.debug('Calling start')       
-        self.poly.subscribe(self.poly.START, self.start, 'controller')
         logging.debug('finish Init ')
         
     def _profiles_match(self, current_profile, expected_profile) -> bool:
@@ -210,7 +209,7 @@ class SPANController(udi_interface.Node):
         try:       
 
             headers = {'Content-Type': 'application/json',
-                       'accept': 'application/json'}
+                       'Accept': 'application/json'}
             data ={
                     'name':'udiSPAN-'+str(uid),
                     'description':'UDI integration of SpanIO panels'
@@ -218,19 +217,21 @@ class SPANController(udi_interface.Node):
     
             completeUrl = f'http://{ipAddress}/api/v1/auth/register'
 
-            response = requests.post(completeUrl, headers=headers, json=data)
+            response = requests.post(completeUrl, headers=headers, json=data, timeout=10)
             #logging.debug(f'response {response} test {response.text}')
 
             if response.status_code == 200:
-                res =  response.json()
+                res = response.json()
                 #logging.debug(f'res {res}')
-                accessToken = res['accessToken']
+                if isinstance(res, dict):
+                    accessToken = res.get('accessToken')
             else:
+                logging.warning(f'registerSpanPanel ({ipAddress}) returned status {response.status_code}')
                 return(None)
             #logging.debug(f'AccessToken {accessToken}')
             return(accessToken)   
         except Exception as e:
-            logging.debug(f'exception {e}')
+            logging.warning(f'registerSpanPanel ({ipAddress}) exception: {e}')
             return(None)
 
 
@@ -263,13 +264,13 @@ class SPANController(udi_interface.Node):
             if IPaddress in self.customData.keys():
                 token = self.customData[IPaddress]
             else:
-                while token == None:
+                while token is None:
                     #logging.debug(f'Add panel {IPaddress}  {uid}')
                     token = self.registerSpanPanel(IPaddress, uid)
-                    if token != None:
+                    if token is not None:
                         self.customData[IPaddress]= token
                     else:
-                        self.poly.Notices['panel'] = 'Click Span Panel door switch 3 times to register Panels'
+                        self.poly.Notices['panel'] = f'Click Span Panel ({IPaddress}) door switch 3 times to register Panels'
                         time.sleep(10)
             self.poly.Notices.clear()
 
@@ -286,11 +287,10 @@ class SPANController(udi_interface.Node):
             time.sleep(5)
         
         logging.debug('Checking for existing nodes not used anymore: {}'.format(self.nodes_in_db))
-        for nde in range(0, len(self.nodes_in_db)):
-            node = self.nodes_in_db[nde]
+        for node in (self.nodes_in_db or []):
             #logging.debug('Scanning db for extra nodes : {}'.format(node))
-            if node['primaryNode'] not in assigned_addresses:
-                logging.debug('Removing node : {} {}'.format(node['name'], node))
+            if isinstance(node, dict) and node.get('primaryNode') not in assigned_addresses:
+                logging.debug('Removing node : {} {}'.format(node.get('name'), node))
                 self.poly.delNode(node['address'])
 
         self.updateISYdrivers()
@@ -303,12 +303,18 @@ class SPANController(udi_interface.Node):
 
     def stop(self):
         #self.removeNoticesAll()
+        logging.debug('stop - Cleaning up')
+        for panel in self.span_panel.values():
+            if panel and hasattr(panel, 'stop'):
+                try:
+                    panel.stop()
+                except Exception as e:
+                    logging.error(f'Error stopping panel node: {e}')
 
         self.poly.Notices.clear()
 
         self.my_setDriver('ST', 0 )
         self.poly.stop()
-        logging.debug('stop - Cleaning up')
     
 
         

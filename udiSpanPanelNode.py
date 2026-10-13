@@ -17,8 +17,8 @@ class udiSpanPanelNode(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, openClose2ISY, priority2ISY, mask2key, bool2ISY, round2ISY, my_setDriver, gridState2ISY, gridStatus2ISY
 
     def __init__(self, polyglot, primary, address, name, span_ipadr, token, battery):
-        #super(teslaPWStatusNode, self).__init__(polyglot, primary, address, name)
-        logging.info(f'_init_ Span Panel Status Node {span_ipadr}, {token}')
+        super().__init__(polyglot, primary, address, name)
+        logging.info(f'_init_ Span Panel Status Node {span_ipadr}')
         self.poly = polyglot
         self.span_ipadr = span_ipadr
         self.panel_node_adr = address
@@ -26,6 +26,7 @@ class udiSpanPanelNode(udi_interface.Node):
         self.battery_backup = battery
         self.ISYforced = False
         self.node_ok = False
+        self._starting = False
         self.address = address
         self.primary = primary
         self.name = name
@@ -42,11 +43,12 @@ class udiSpanPanelNode(udi_interface.Node):
         
     def start(self):   
         logging.debug('StartSpanIO Panel Node')
-        if self.node_ok:
+        if self.node_ok or self._starting:
             logging.debug('Span Panel Node already initialized')
             return
+        self._starting = True
         logging.info('Adding SPAN panel sub-nodes')
-        self.span_panel = SpanAccess(self.span_ipadr, self.token)
+        self.span_panel = SpanAccess(self.span_ipadr, self.token, battery_backup=self.battery_backup)
         self.update_data()        
         self.create_subnodes()
         self.updateISYdrivers(force=True)
@@ -55,14 +57,21 @@ class udiSpanPanelNode(udi_interface.Node):
 
     def create_subnodes(self):
         logging.debug(f'create_subnodes - {self.name}')
-        code, self.circuits = self.span_panel.getSpanCircuitsInfo()
+        cached_circuits = self.span_panel.span_data.get('circuit_info')
+        if isinstance(cached_circuits, dict) and cached_circuits:
+            code, self.circuits = 200, cached_circuits
+        else:
+            code, self.circuits = self.span_panel.getSpanCircuitsInfo()
         #logging.debug(f'Panel {self.span_ipadr} Circuits info: {code} , {self.circuits }')            
-        if code == 200:
-            for circuit in self.circuits:
-                logging.info(f'adding circuit {circuit} = {self.circuits[circuit]["name"]}')
+        if code == 200 and isinstance(self.circuits, dict):
+            for circuit, circuit_data in self.circuits.items():
+                if not isinstance(circuit_data, dict):
+                    continue
+                circuit_name = circuit_data.get('name', str(circuit))
+                logging.info(f'adding circuit {circuit} = {circuit_name}')
                 circuitADR = circuit[-14:]
                 nodeaddress  = self.poly.getValidAddress(circuitADR)
-                nodename = self.poly.getValidName(self.circuits[circuit]['name'])
+                nodename = self.poly.getValidName(circuit_name)
                 circuit_node = udiSpanCircuitNode(self.poly, self.panel_node_adr, nodeaddress, nodename, self.span_panel, str(circuit))
                 self.circuit_access[circuit] = circuit_node
                 self.poly.addNode(circuit_node)
@@ -115,6 +124,7 @@ class udiSpanPanelNode(udi_interface.Node):
         logging.debug('stop - Cleaning up')
         if hasattr(self, 'span_panel') and self.span_panel:
             self.span_panel.save_accum_data()
+            self.span_panel.close()
     
     def node_ready(self):
         return(self.node_ok)

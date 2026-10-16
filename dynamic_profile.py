@@ -295,7 +295,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
                 {"id": "GV4", "editor": "UTIME", "name": "Power Measurement Time"},
                 {"id": "GV5", "editor": "KWH", "name": "Imported Energy"},
                 {"id": "GV6", "editor": "KWH", "name": "Exported Energy"},
-                {"id": "GV7", "editor": "WH", "name": "Energy last hour "},
+                {"id": "GV7", "editor": "WH", "name": "Energy last hour"},
                 {"id": "GV8", "editor": "WH", "name": "Energy last 24 hours"},
                 {"id": "GV9", "editor": "UTIME", "name": "Energy Measurement Time"},
             ],

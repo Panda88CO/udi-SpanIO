@@ -234,15 +234,14 @@ class udiSpanPanelNode(udi_interface.Node):
     }
  
     drivers = [
-            {'driver': 'ST', 'value': 0, 'uom': 73},         
-            {'driver': 'GV0', 'value': 0, 'uom': 25},       
-            {'driver': 'GV1', 'value': 99, 'uom': 25},
-            {'driver': 'GV2', 'value': 0, 'uom': 73},  
-            {'driver': 'GV3', 'value': 0, 'uom': 25}, 
-            {'driver': 'GV4', 'value': 0, 'uom': 25},  
-            {'driver': 'GV5', 'value': 0, 'uom': 151},  
-            {'driver': 'GV7', 'value': 0, 'uom': 51},  
-                                          
-            ]
+        {'driver': 'ST', 'value': 0, 'uom': 73, 'name': 'Instant Panel Power'},         
+        {'driver': 'GV0', 'value': 0, 'uom': 25, 'name': 'Panel Door State'},       
+        {'driver': 'GV1', 'value': 99, 'uom': 25, 'name': 'Main Panel Breaker State'},
+        {'driver': 'GV2', 'value': 0, 'uom': 73, 'name': 'Instant Feedthrough Power'},  
+        {'driver': 'GV3', 'value': 0, 'uom': 25, 'name': 'Grid State'}, 
+        {'driver': 'GV4', 'value': 0, 'uom': 25, 'name': 'Grid Status'},  
+        {'driver': 'GV5', 'value': 0, 'uom': 151, 'name': 'Panel Update Time'},  
+        {'driver': 'GV7', 'value': 0, 'uom': 51, 'name': 'Backup Battery Capacity'},  
+    ]
 
     

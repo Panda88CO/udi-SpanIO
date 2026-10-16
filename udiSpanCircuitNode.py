@@ -183,18 +183,15 @@ class udiSpanCircuitNode(udi_interface.Node):
     '''
 
     drivers = [
-            {'driver': 'ST', 'value': 0, 'uom': 73},         
-            {'driver': 'GV1', 'value': 0, 'uom': 25},
-            {'driver': 'GV2', 'value': 99, 'uom': 25},  
-            {'driver': 'GV4', 'value': 0, 'uom': 151},  
-
-            {'driver': 'GV5', 'value': 0, 'uom': 33},  
-            {'driver': 'GV6', 'value': 0, 'uom': 33},  
-            {'driver': 'GV7', 'value': 99, 'uom': 119},  
-            {'driver': 'GV8', 'value': 99, 'uom': 119}, 
-
-            {'driver': 'GV9', 'value': 0, 'uom': 151},           
-
-            ]
+        {'driver': 'ST', 'value': 0, 'uom': 73, 'name': 'Instantaneous Power'},         
+        {'driver': 'GV1', 'value': 0, 'uom': 25, 'name': 'Circuit (relay) Priority'},
+        {'driver': 'GV2', 'value': 99, 'uom': 25, 'name': 'Circuit (relay) State'},  
+        {'driver': 'GV4', 'value': 0, 'uom': 151, 'name': 'Power Measurement Time'},  
+        {'driver': 'GV5', 'value': 0, 'uom': 33, 'name': 'Imported Energy'},  
+        {'driver': 'GV6', 'value': 0, 'uom': 33, 'name': 'Exported Energy'},  
+        {'driver': 'GV7', 'value': 99, 'uom': 119, 'name': 'Energy last hour'},  
+        {'driver': 'GV8', 'value': 99, 'uom': 119, 'name': 'Energy last 24 hours'}, 
+        {'driver': 'GV9', 'value': 0, 'uom': 151, 'name': 'Energy Measurement Time'},           
+    ]
 
     

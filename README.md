@@ -73,6 +73,22 @@ In the Polyglot Dashboard under **Configuration**, configure the following param
 
 ## Setup & Pairing
 
+### How to Find Your SPAN Passphrase
+
+Your panel's local passphrase can be obtained through any of the following methods:
+
+1. **SPAN Home Mobile App (Recommended)**:
+   - Connect your phone/tablet to the **same local Wi-Fi** as your SPAN panel.
+   - Open the **SPAN Home App**.
+   - Navigate to **Settings** (gear icon) $\rightarrow$ **All Settings** $\rightarrow$ **On-premise settings** (or *Access SPAN Home On-premise*).
+   - Your local **Passphrase** is displayed on the screen.
+2. **Physical Panel Door Label**:
+   - On newer panels, the passphrase is printed on the factory sticker on the inside of the door or near the corner of the deadfront rim, labeled **Passphrase** or **WPA2 Password / Key** near the QR code.
+3. **SPAN Support**:
+   - If your panel is an older generation without the sticker and your app does not show the menu, SPAN Support (`support@span.io` or 1-855-980-SPAN) can provide the passphrase using your serial number.
+
+---
+
 ### Recommended: Local MQTT v2 Setup
 1. Enter your panel's IP address in `LOCAL_IP_ADDRESSES` and your panel's passphrase in `PANEL_PASSPHRASES`.
 2. Save configuration and start the node server.

@@ -1,4 +1,8 @@
 <editors> 
+  <editor id="CIRCUIT_LIST">
+     <range uom="25" subset="0-99" nls="CIRCUIT_LIST" />
+  </editor>
+
   <editor id="UPDN"> 
      <range uom="25" subset="0-1" nls="UPDN" />
   </editor>
@@ -30,7 +34,7 @@
      <range uom="73" min="-150000" max="150000" prec="1" />
      <range uom="25" subset="98-99" nls="NODATA" />
   </editor>
-    <editor id = "WH" > 
+  <editor id = "WH" > 
      <range uom="119" min="-1000000" max="1000000" prec="1" />
      <range uom="25" subset="98-99" nls="NODATA" />
   </editor>
@@ -49,24 +53,23 @@
   </editor>
   <editor id = "HOURS" > 
      <range  uom="20" min="0" max="100" prec="2" />
-      <range uom="25" subset="98-99" nls="error" />
+     <range uom="25" subset="98-99" nls="error" />
   </editor>
-    <editor id = "MINS" > 
+  <editor id = "MINS" > 
      <range  uom="44" min="0" max="720" prec="2" />
-      <range uom="25" subset="98-99" nls="error" />
+     <range uom="25" subset="98-99" nls="error" />
   </editor>
-   <editor id = "UTIME" > 
+  <editor id = "UTIME" > 
      <range  uom="151" min="0" max="5000000000" prec="0" />
-      <range uom="25" subset="98-99" nls="error" />
+     <range uom="25" subset="98-99" nls="error" />
   </editor>
-     <editor id = "SECS" > 
+  <editor id = "SECS" > 
      <range  uom="57" min="0" max="7200" prec="0" />
-      <range uom="25" subset="98-99" nls="error" />
+     <range uom="25" subset="98-99" nls="error" />
   </editor>
   <editor id = "PERCENT" > 
      <range  uom="51" min="0" max="100" prec="0" />
      <range uom="25" subset="97-99" nls="error"/>
   </editor>
-
 
 </editors> 

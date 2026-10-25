@@ -2,6 +2,7 @@ ND-controller-NAME = SPAN panels Info
 ND-controller-ICON = EnergyMonitor
 
 CMD-nlscontroller-UPDATE-NAME = Update System Data
+CMD-nlscontroller-QUERY-NAME = Query
 ST-nlscontroller-ST-NAME = Node Status
 ST-nlscontroller-GV1-NAME = Nbr Span Panels
 
@@ -16,6 +17,34 @@ ST-nlsspanpanel-GV4-NAME = Grid Status
 ST-nlsspanpanel-GV5-NAME = Panel Update Time
 ST-nlsspanpanel-GV7-NAME = Backup Battery Capacity
 CMD-nlsspanpanel-UPDATE-NAME = Update Panels Data
+CMD-nlsspanpanel-QUERY-NAME = Query
+
+ND-spansummary-NAME = SPAN Power Summary
+ND-spansummary-ICON = EnergyMonitor
+ST-nlsspansummary-ST-NAME = Instantaneous Total Consumption
+ST-nlsspansummary-GV0-NAME = Total Energy Last 1 Hour
+ST-nlsspansummary-GV1-NAME = Total Energy Last 1 Day
+ST-nlsspansummary-GV2-NAME = Top 1 Instant Consumer
+ST-nlsspansummary-GV3-NAME = Top 1 Instant Power
+ST-nlsspansummary-GV4-NAME = Top 2 Instant Consumer
+ST-nlsspansummary-GV5-NAME = Top 2 Instant Power
+ST-nlsspansummary-GV6-NAME = Top 3 Instant Consumer
+ST-nlsspansummary-GV7-NAME = Top 3 Instant Power
+ST-nlsspansummary-GV8-NAME = Top 1 1-Hour Consumer
+ST-nlsspansummary-GV9-NAME = Top 1 1-Hour Energy
+ST-nlsspansummary-GV10-NAME = Top 2 1-Hour Consumer
+ST-nlsspansummary-GV11-NAME = Top 2 1-Hour Energy
+ST-nlsspansummary-GV12-NAME = Top 3 1-Hour Consumer
+ST-nlsspansummary-GV13-NAME = Top 3 1-Hour Energy
+ST-nlsspansummary-GV14-NAME = Top 1 1-Day Consumer
+ST-nlsspansummary-GV15-NAME = Top 1 1-Day Energy
+ST-nlsspansummary-GV16-NAME = Top 2 1-Day Consumer
+ST-nlsspansummary-GV17-NAME = Top 2 1-Day Energy
+ST-nlsspansummary-GV18-NAME = Top 3 1-Day Consumer
+ST-nlsspansummary-GV19-NAME = Top 3 1-Day Energy
+ST-nlsspansummary-GV20-NAME = Summary Measurement Time
+CMD-nlsspansummary-UPDATE-NAME = Update Summary Data
+CMD-nlsspansummary-QUERY-NAME = Query
 
 ND-spancircuit-NAME = SPAN Breaker Status
 ND-spancircuit-ICON = EnergyMonitor
@@ -30,6 +59,7 @@ ST-nlsspancircuit-GV8-NAME = Energy last 24 hours
 ST-nlsspancircuit-GV9-NAME = Energy Measurement Time
 
 CMD-nlsspancircuit-UPDATE-NAME = Update Breaker Data
+CMD-nlsspancircuit-QUERY-NAME = Query
 
 CMD-nlsspancircuit-OPENCLOSE-NAME = Set State
 CMDP-openclose-NAME = Breaker State
@@ -61,6 +91,8 @@ GRIDSTATUS-99 = Unknown
 
 NODATA-98 = Error
 NODATA-99 = No Data
+
+CIRCUIT_LIST-0 = None
 
 error-97 = No Data 
 error-98 = Unknown

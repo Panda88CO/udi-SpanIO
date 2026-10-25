@@ -12,6 +12,7 @@
          </sends>
          <accepts>
             <cmd id="UPDATE" /> 
+            <cmd id="QUERY" />
          </accepts>
       </cmds>
    </nodeDef> 
@@ -33,10 +34,46 @@
          </sends>
          <accepts>
             <cmd id="UPDATE" /> 
+            <cmd id="QUERY" />
          </accepts>
       </cmds>
    </nodeDef> 
 
+   <nodeDef id="spansummary" nls="nlsspansummary">
+      <editors />
+      <sts>
+         <st id="ST" editor="W" />
+         <st id="GV0" editor="WH" />
+         <st id="GV1" editor="WH" />
+         <st id="GV2" editor="CIRCUIT_LIST" />
+         <st id="GV3" editor="W" />
+         <st id="GV4" editor="CIRCUIT_LIST" />
+         <st id="GV5" editor="W" />
+         <st id="GV6" editor="CIRCUIT_LIST" />
+         <st id="GV7" editor="W" />
+         <st id="GV8" editor="CIRCUIT_LIST" />
+         <st id="GV9" editor="WH" />
+         <st id="GV10" editor="CIRCUIT_LIST" />
+         <st id="GV11" editor="WH" />
+         <st id="GV12" editor="CIRCUIT_LIST" />
+         <st id="GV13" editor="WH" />
+         <st id="GV14" editor="CIRCUIT_LIST" />
+         <st id="GV15" editor="WH" />
+         <st id="GV16" editor="CIRCUIT_LIST" />
+         <st id="GV17" editor="WH" />
+         <st id="GV18" editor="CIRCUIT_LIST" />
+         <st id="GV19" editor="WH" />
+         <st id="GV20" editor="UTIME" />
+      </sts>
+      <cmds>
+         <sends>
+         </sends>
+         <accepts>
+            <cmd id="UPDATE" />
+            <cmd id="QUERY" />
+         </accepts>
+      </cmds>
+   </nodeDef>
 
    <nodeDef id="spancircuit" nls="nlsspancircuit">
       <editors />
@@ -59,7 +96,11 @@
             <cmd id="UPDATE" /> 
             <cmd id="OPENCLOSE" > 
                <p id="openclose" editor="SET_OPENCLOSE" init="GV2" />                
-             </cmd >
+            </cmd >
+            <cmd id="PRIORITY" >
+               <p id="priority" editor="SET_PRIORITY" init="GV1" />
+            </cmd>
+            <cmd id="QUERY" />
          </accepts>
       </cmds>
    </nodeDef> 

@@ -5,6 +5,7 @@ import requests
 import json
 
 from udiSpanPanelNode import udiSpanPanelNode
+from SpanMqttManager import SpanMqttManager
 from dynamic_profile import dynamic_profile_payload
 try:
     import udi_interface
@@ -17,7 +18,7 @@ except ImportError:
     logging.basicConfig(level=30)
 
 
-VERSION = '0.1.24'
+VERSION = '1.0.0'
 class SPANController(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, random_string, mask2key, heartbeat, bool2ISY, my_setDriver
 
@@ -37,8 +38,15 @@ class SPANController(udi_interface.Node):
         self.n_queue = []
         self.span_panel = {}
         self.span_ip_list = []
+        self.span_passphrases = []
         self.battery_backup = False
         self.hb = 0
+        self.mqtt_manager = SpanMqttManager(
+            min_update_interval=30.0,
+            power_threshold_w=15.0,
+            heartbeat_interval=900.0,
+        )
+        self.mqtt_manager.start()
 
         self.customParameters = Custom(self.poly, 'customparams')
         self.customData = Custom(self.poly, 'customdata')
@@ -193,6 +201,19 @@ class SPANController(udi_interface.Node):
             logging.warning('No BACKUP_BATTERY found')
             self.customParameters['BACKUP_BATTERY'] = 'TRUE/FALSE'
             self.battery_backup = False
+
+        self.span_passphrases = []
+        if 'PANEL_PASSPHRASES' in self.customParameters:
+            passphrase_str = self.customParameters['PANEL_PASSPHRASES']
+            if passphrase_str and passphrase_str not in ('enter list of passphrases', 'x.x.x.x'):
+                self.span_passphrases = passphrase_str.split()
+        elif 'PANEL_PASSPHRASE' in self.customParameters:
+            passphrase_str = self.customParameters['PANEL_PASSPHRASE']
+            if passphrase_str and passphrase_str not in ('enter passphrase', 'x.x.x.x'):
+                self.span_passphrases = [passphrase_str]
+        else:
+            logging.info('No PANEL_PASSPHRASES found')
+            self.customParameters['PANEL_PASSPHRASES'] = 'enter list of passphrases'
         logging.debug('customParamsHandler finish ')
         self.customParam_done = True
 
@@ -261,21 +282,27 @@ class SPANController(udi_interface.Node):
             address = self.poly.getValidAddress(tempstr)
 
             nodename = 'SPAN '+str(IPaddress)
+            passphrase = self.span_passphrases[indx] if indx < len(self.span_passphrases) else None
+
             if IPaddress in self.customData.keys():
                 token = self.customData[IPaddress]
             else:
-                while token is None:
-                    #logging.debug(f'Add panel {IPaddress}  {uid}')
-                    token = self.registerSpanPanel(IPaddress, uid)
-                    if token is not None:
-                        self.customData[IPaddress]= token
-                    else:
-                        self.poly.Notices['panel'] = f'Click Span Panel ({IPaddress}) door switch 3 times to register Panels'
-                        time.sleep(10)
+                token = self.registerSpanPanel(IPaddress, uid)
+                if token is not None:
+                    self.customData[IPaddress] = token
+                elif passphrase:
+                    logging.info(f'Panel {IPaddress}: REST registration token not available, but MQTT passphrase is set. Proceeding with MQTT.')
+                else:
+                    logging.warning(f'Panel {IPaddress}: No REST token and no passphrase provided.')
+                    self.poly.Notices['panel'] = f'Click Span Panel ({IPaddress}) door switch 3 times or enter PANEL_PASSPHRASES'
+
             self.poly.Notices.clear()
 
             logging.debug(f'Panel info : {address} , {nodename}')
-            self.span_panel[IPaddress] = udiSpanPanelNode(self.poly, address, address, nodename, IPaddress, token, self.battery_backup)    
+            self.span_panel[IPaddress] = udiSpanPanelNode(
+                self.poly, address, address, nodename, IPaddress, token, self.battery_backup,
+                passphrase=passphrase, mqtt_manager=self.mqtt_manager
+            )    
             # need to retrieve unique ID and Token and store in customData          
             
   
@@ -304,6 +331,12 @@ class SPANController(udi_interface.Node):
     def stop(self):
         #self.removeNoticesAll()
         logging.debug('stop - Cleaning up')
+        if hasattr(self, 'mqtt_manager') and self.mqtt_manager:
+            try:
+                self.mqtt_manager.stop()
+            except Exception as e:
+                logging.error(f'Error stopping MQTT manager: {e}')
+
         for panel in self.span_panel.values():
             if panel and hasattr(panel, 'stop'):
                 try:

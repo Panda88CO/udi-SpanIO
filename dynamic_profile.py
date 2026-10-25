@@ -5,11 +5,32 @@ static XML/NLS files, enabling real-time profile provisioning without manual
 profile.zip packaging or IoX restart.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
-def profile_editors() -> List[Dict[str, Any]]:
+def circuit_list_editor(circuit_names: Optional[Dict[int, str]] = None) -> Dict[str, Any]:
+    """Generates dynamic UOM 25 CIRCUIT_LIST editor mapping integer indices to circuit breaker names."""
+    mapping = {"0": "None"}
+    if circuit_names:
+        for idx, name in sorted(circuit_names.items(), key=lambda x: int(x[0])):
+            clean_name = str(name).strip() if name else f"Circuit {idx}"
+            mapping[str(idx)] = clean_name
+    subset = list(mapping.keys())
+    return {
+        "id": "CIRCUIT_LIST",
+        "ranges": [
+            {
+                "uom": "25",
+                "subset": ",".join(subset),
+                "names": mapping,
+            }
+        ],
+    }
+
+
+def profile_editors(circuit_names: Optional[Dict[int, str]] = None) -> List[Dict[str, Any]]:
     return [
+        circuit_list_editor(circuit_names),
         {
             "id": "UPDN",
             "ranges": [
@@ -258,6 +279,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
                 ],
                 "accepts": [
                     {"id": "UPDATE", "name": "Update System Data"},
+                    {"id": "QUERY", "name": "Query"},
                 ],
             },
             "links": {"ctl": [], "rsp": []},
@@ -280,6 +302,44 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
                 "sends": [],
                 "accepts": [
                     {"id": "UPDATE", "name": "Update Panels Data"},
+                    {"id": "QUERY", "name": "Query"},
+                ],
+            },
+            "links": {"ctl": [], "rsp": []},
+        },
+        {
+            "id": "spansummary",
+            "name": "SPAN Power Summary",
+            "icon": "EnergyMonitor",
+            "properties": [
+                {"id": "ST", "editor": "W", "name": "Instantaneous Total Consumption"},
+                {"id": "GV0", "editor": "WH", "name": "Total Energy Last 1 Hour"},
+                {"id": "GV1", "editor": "WH", "name": "Total Energy Last 1 Day"},
+                {"id": "GV2", "editor": "CIRCUIT_LIST", "name": "Top 1 Instant Consumer"},
+                {"id": "GV3", "editor": "W", "name": "Top 1 Instant Power"},
+                {"id": "GV4", "editor": "CIRCUIT_LIST", "name": "Top 2 Instant Consumer"},
+                {"id": "GV5", "editor": "W", "name": "Top 2 Instant Power"},
+                {"id": "GV6", "editor": "CIRCUIT_LIST", "name": "Top 3 Instant Consumer"},
+                {"id": "GV7", "editor": "W", "name": "Top 3 Instant Power"},
+                {"id": "GV8", "editor": "CIRCUIT_LIST", "name": "Top 1 1-Hour Consumer"},
+                {"id": "GV9", "editor": "WH", "name": "Top 1 1-Hour Energy"},
+                {"id": "GV10", "editor": "CIRCUIT_LIST", "name": "Top 2 1-Hour Consumer"},
+                {"id": "GV11", "editor": "WH", "name": "Top 2 1-Hour Energy"},
+                {"id": "GV12", "editor": "CIRCUIT_LIST", "name": "Top 3 1-Hour Consumer"},
+                {"id": "GV13", "editor": "WH", "name": "Top 3 1-Hour Energy"},
+                {"id": "GV14", "editor": "CIRCUIT_LIST", "name": "Top 1 1-Day Consumer"},
+                {"id": "GV15", "editor": "WH", "name": "Top 1 1-Day Energy"},
+                {"id": "GV16", "editor": "CIRCUIT_LIST", "name": "Top 2 1-Day Consumer"},
+                {"id": "GV17", "editor": "WH", "name": "Top 2 1-Day Energy"},
+                {"id": "GV18", "editor": "CIRCUIT_LIST", "name": "Top 3 1-Day Consumer"},
+                {"id": "GV19", "editor": "WH", "name": "Top 3 1-Day Energy"},
+                {"id": "GV20", "editor": "UTIME", "name": "Summary Measurement Time"},
+            ],
+            "cmds": {
+                "sends": [],
+                "accepts": [
+                    {"id": "UPDATE", "name": "Update Summary Data"},
+                    {"id": "QUERY", "name": "Query"},
                 ],
             },
             "links": {"ctl": [], "rsp": []},
@@ -315,6 +375,18 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
                             }
                         ],
                     },
+                    {
+                        "id": "PRIORITY",
+                        "name": "Set Priority",
+                        "parameters": [
+                            {
+                                "id": "priority",
+                                "name": "Breaker Priority",
+                                "editor": "SET_PRIORITY",
+                                "init": "GV1",
+                            }
+                        ],
+                    },
                 ],
             },
             "links": {"ctl": [], "rsp": []},
@@ -322,7 +394,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
     ]
 
 
-def dynamic_profile_payload(version: str = "0.1.21") -> Dict[str, Any]:
+def dynamic_profile_payload(version: str = "1.0.0", circuit_names: Optional[Dict[int, str]] = None) -> Dict[str, Any]:
     return {
         "version": version,
         "delete": {
@@ -330,8 +402,7 @@ def dynamic_profile_payload(version: str = "0.1.21") -> Dict[str, Any]:
             "nodedefs": ["*"],
             "linkdefs": ["*"],
         },
-        "editors": profile_editors(),
+        "editors": profile_editors(circuit_names),
         "nodedefs": profile_nodedefs(),
         "linkdefs": [],
     }
-

@@ -168,7 +168,7 @@ class udiSpanCircuitNode(udi_interface.Node):
                 'UPDATE'    : ISYupdate, 
                 'OPENCLOSE' : set_breaker,
                 'QUERY'     : query,
-                #'PRIORITY'  : set_priority  Not workling yet - generates internal error
+                'PRIORITY'  : set_priority,
                 }
     '''
         <st id="ST" editor="W" /> Instantaneous Power (W)

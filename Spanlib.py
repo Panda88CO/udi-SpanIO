@@ -17,10 +17,11 @@ except ImportError:
 class SpanAccess(object):
     from  udiLib import random_string
 
-    def __init__ (self, IPaddress, token, battery_backup=True):
+    def __init__ (self, IPaddress, token, battery_backup=True, mqtt_manager=None):
         self.IP_address = IPaddress
         self.accessToken = token
         self.battery_backup = battery_backup
+        self.mqtt_manager = mqtt_manager
         self.session = requests.Session()
         
         self.yourApiEndpoint = f'http://{self.IP_address}/api/v1'
@@ -316,6 +317,64 @@ class SpanAccess(object):
         logging.debug('circuit info {}'.format(self.span_data.get('circuit_info')))        
         self.update_Accum_Energy(None, True)
 
+    def load_snapshot(self, snapshot):
+        """Ingests a SpanPanelSnapshot dataclass from the MQTT stream into span_data."""
+        if snapshot is None:
+            return
+        now_ts = int(time.time())
+        self.span_data['panel_info'] = {
+            'instantGridPowerW': getattr(snapshot, 'instant_grid_power_w', 0.0),
+            'feedthroughPowerW': getattr(snapshot, 'feedthrough_power_w', 0.0),
+            'mainRelayState': getattr(snapshot, 'main_relay_state', 'CLOSED'),
+            'dsmState': getattr(snapshot, 'dsm_state', 'DSM_ON_GRID'),
+            'dsmGridState': getattr(snapshot, 'grid_state', 'DSM_GRID_UP'),
+            'currentRunConfig': getattr(snapshot, 'current_run_config', None),
+            'mainMeterEnergyConsumedWh': getattr(snapshot, 'main_meter_energy_consumed_wh', None),
+            'mainMeterEnergyProducedWh': getattr(snapshot, 'main_meter_energy_produced_wh', None),
+            'instantPowerUpdateTimeS': now_ts,
+        }
+        self.span_data['panel_update_time'] = now_ts
+
+        door = getattr(snapshot, 'door_state', 'CLOSED')
+        self.span_data['status'] = {
+            'system': {'doorState': door}
+        }
+
+        bat = getattr(snapshot, 'battery', None)
+        if bat is not None:
+            pct = getattr(bat, 'soe_percentage', None)
+            self.span_data['battery_info'] = {
+                'soe': {'percentage': pct}
+            }
+
+        circuits = getattr(snapshot, 'circuits', {}) or {}
+        if not isinstance(self.span_data.get('circuit_info'), dict):
+            self.span_data['circuit_info'] = {}
+
+        for cid, c in circuits.items():
+            c_name = getattr(c, 'name', cid)
+            pwr = getattr(c, 'instant_power_w', 0.0)
+            r_state = getattr(c, 'relay_state', 'CLOSED')
+            prio = getattr(c, 'priority', 'NOT_ESSENTIAL')
+            prod_wh = getattr(c, 'produced_energy_wh', 0.0)
+            cons_wh = getattr(c, 'consumed_energy_wh', 0.0)
+            pwr_ts = getattr(c, 'instant_power_update_time_s', None) or now_ts
+            energy_ts = getattr(c, 'energy_accum_update_time_s', None) or now_ts
+
+            self.span_data['circuit_info'][cid] = {
+                'id': cid,
+                'name': c_name,
+                'relayState': r_state,
+                'priority': prio,
+                'instantPowerW': -pwr if pwr else 0.0,
+                'producedEnergyWh': prod_wh,
+                'consumedEnergyWh': cons_wh,
+                'instantPowerUpdateTimeS': pwr_ts,
+                'energyAccumUpdateTimeS': energy_ts,
+            }
+
+        self.update_Accum_Energy(None, False)
+
     def get_panel_door_state(self):
         logging.debug('get_panel_door_state')
         try:
@@ -430,6 +489,18 @@ class SpanAccess(object):
 
     def set_breaker_state(self, breaker_id, state):
         logging.debug(f'set_breaker_state {breaker_id} {state}')
+        norm_state = str(state).upper()
+        if self.mqtt_manager and self.mqtt_manager.is_available:
+            success = self.mqtt_manager.set_circuit_relay(self.IP_address, str(breaker_id), norm_state)
+            if success:
+                if not isinstance(self.span_data.get('circuit_info'), dict):
+                    self.span_data['circuit_info'] = {}
+                if breaker_id not in self.span_data['circuit_info']:
+                    self.span_data['circuit_info'][breaker_id] = {}
+                self.span_data['circuit_info'][breaker_id]['relayState'] = norm_state
+                return True
+            logging.warning(f'MQTT set_circuit_relay failed or not connected, falling back to REST for {breaker_id}')
+
         code, return_data = self.setBreakerState(breaker_id, state)
         if code == 200 and isinstance(return_data, dict):
             if not isinstance(self.span_data.get('circuit_info'), dict):
@@ -440,6 +511,18 @@ class SpanAccess(object):
 
     def set_breaker_priority(self, breaker_id, priority):
         logging.debug(f'set_breaker_priority {breaker_id} {priority}')
+        norm_prio = str(priority).upper().replace(' ', '_')
+        if self.mqtt_manager and self.mqtt_manager.is_available:
+            success = self.mqtt_manager.set_circuit_priority(self.IP_address, str(breaker_id), norm_prio)
+            if success:
+                if not isinstance(self.span_data.get('circuit_info'), dict):
+                    self.span_data['circuit_info'] = {}
+                if breaker_id not in self.span_data['circuit_info']:
+                    self.span_data['circuit_info'][breaker_id] = {}
+                self.span_data['circuit_info'][breaker_id]['priority'] = norm_prio
+                return True
+            logging.warning(f'MQTT set_circuit_priority failed or not connected, falling back to REST for {breaker_id}')
+
         code, return_data = self.setBreakerPriority(breaker_id, priority)
         if code == 200 and isinstance(return_data, dict):
             if not isinstance(self.span_data.get('circuit_info'), dict):

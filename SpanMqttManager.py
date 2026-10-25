@@ -12,26 +12,68 @@ udi_interface node lifecycle, featuring an eisy-friendly throttling engine:
 
 import asyncio
 import logging
+import socket
 import threading
 import time
 from typing import Any, Callable, Dict, Optional
 
 try:
-    from span_panel_api import create_span_client, SpanMqttClient, SpanPanelSnapshot
+    from span_panel_api import (
+        create_span_client,
+        register_v2,
+        MqttClientConfig,
+        SpanMqttClient,
+        SpanPanelSnapshot,
+    )
     from span_panel_api.exceptions import (
         SpanPanelError,
         SpanPanelAuthError,
         SpanPanelConnectionError,
         SpanPanelStaleDataError,
         SpanPanelTimeoutError,
+        SpanPanelAPIError,
     )
     SPAN_MQTT_AVAILABLE = True
 except ImportError:
     SPAN_MQTT_AVAILABLE = False
     SpanPanelSnapshot = Any
+    MqttClientConfig = Any
 
 
 LOGGER = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# DNS Override Hook for SPAN Panel mDNS Hostnames (.local)
+# On platforms like eisy/FreeBSD where mDNS is not routed through getaddrinfo,
+# SPAN panels report broker hostnames like span-nt-xxxx-yyyy.local.
+# Python TLS verification (check_hostname=True) requires connecting to the
+# broker hostname matching the server certificate, but TCP needs the IP.
+# By intercepting getaddrinfo, we route .local broker hosts to the panel IP.
+# ---------------------------------------------------------------------------
+_ORIG_GETADDRINFO = socket.getaddrinfo
+_DNS_HOST_OVERRIDES: Dict[str, str] = {}
+
+
+def _custom_getaddrinfo(host, port, *args, **kwargs):
+    """Intercept DNS lookups for SPAN panel .local hostnames to map to IP addresses."""
+    if isinstance(host, str):
+        cleaned = host.rstrip('.').lower()
+        if cleaned in _DNS_HOST_OVERRIDES:
+            target = _DNS_HOST_OVERRIDES[cleaned]
+            return _ORIG_GETADDRINFO(target, port, *args, **kwargs)
+        # Fallback for .local SPAN broker hosts
+        if cleaned.endswith('.local') and len(_DNS_HOST_OVERRIDES) >= 1:
+            for registered_host, target_ip in _DNS_HOST_OVERRIDES.items():
+                if cleaned in registered_host or registered_host in cleaned:
+                    return _ORIG_GETADDRINFO(target_ip, port, *args, **kwargs)
+            unique_ips = set(_DNS_HOST_OVERRIDES.values())
+            if len(unique_ips) == 1:
+                return _ORIG_GETADDRINFO(next(iter(unique_ips)), port, *args, **kwargs)
+    return _ORIG_GETADDRINFO(host, port, *args, **kwargs)
+
+
+if socket.getaddrinfo != _custom_getaddrinfo:
+    socket.getaddrinfo = _custom_getaddrinfo
 
 
 class PanelStreamState:
@@ -140,12 +182,49 @@ class SpanMqttManager:
         return True
 
     async def _connect_panel_coro(self, state: PanelStreamState) -> None:
-        """Async task to create client, connect, and start push streaming."""
+        """Async task to register, resolve broker DNS, create client, and start push streaming."""
         LOGGER.info(f'Connecting to SPAN panel {state.host} via MQTT/Homie v2...')
         try:
+            # Map host IP itself in override dictionary
+            _DNS_HOST_OVERRIDES[state.host.rstrip('.').lower()] = state.host
+
+            # 1. Register with the panel to obtain broker host and TLS/MQTT credentials
+            LOGGER.debug(f'Registering v2 credentials with SPAN panel at {state.host}...')
+            auth_resp = await register_v2(
+                host=state.host,
+                name="udiSpan",
+                passphrase=state.passphrase,
+            )
+
+            # 2. Map panel broker hostnames to panel IP to ensure mDNS .local resolves
+            # on platforms without mDNS daemon (e.g. eisy/FreeBSD) while preserving TLS SNI
+            if auth_resp.ebus_broker_host:
+                broker_h = auth_resp.ebus_broker_host.rstrip('.').lower()
+                _DNS_HOST_OVERRIDES[broker_h] = state.host
+                LOGGER.info(f'Mapped SPAN broker host {broker_h} -> {state.host}')
+            if auth_resp.hostname:
+                h = auth_resp.hostname.rstrip('.').lower()
+                _DNS_HOST_OVERRIDES[h] = state.host
+                _DNS_HOST_OVERRIDES[f'{h}.local'] = state.host
+            if auth_resp.serial_number:
+                s = auth_resp.serial_number.lower()
+                _DNS_HOST_OVERRIDES[f'span-{s}.local'] = state.host
+                _DNS_HOST_OVERRIDES[f'{s}.local'] = state.host
+
+            mqtt_config = MqttClientConfig(
+                broker_host=auth_resp.ebus_broker_host,
+                username=auth_resp.ebus_broker_username,
+                password=auth_resp.ebus_broker_password,
+                mqtts_port=auth_resp.ebus_broker_mqtts_port,
+                ws_port=auth_resp.ebus_broker_ws_port,
+                wss_port=auth_resp.ebus_broker_wss_port,
+            )
+
+            # 3. Create client (connects to MQTT broker and waits for Homie device ready)
             client = await create_span_client(
                 host=state.host,
-                passphrase=state.passphrase,
+                mqtt_config=mqtt_config,
+                serial_number=auth_resp.serial_number,
             )
             state.client = client
 
@@ -165,19 +244,31 @@ class SpanMqttManager:
 
             client.register_snapshot_callback(on_snapshot_async)
 
-            await client.connect()
             state.connected = True
             LOGGER.info(f'SPAN panel {state.host} connected successfully; starting push streaming')
 
             await client.start_streaming()
             state.streaming = True
 
+            # Ingest initial snapshot immediately if available
+            try:
+                initial_snap = await client.get_snapshot()
+                if initial_snap:
+                    LOGGER.info(f'Retrieved initial snapshot for SPAN panel {state.host}')
+                    self._handle_incoming_snapshot(state, initial_snap)
+            except Exception as e:
+                LOGGER.debug(f'Initial snapshot not immediately ready for {state.host}: {e}')
+
         except SpanPanelAuthError as e:
             LOGGER.error(f'Authentication failed for SPAN panel {state.host}: check passphrase. Error: {e}')
         except (SpanPanelConnectionError, SpanPanelTimeoutError) as e:
-            LOGGER.warning(f'Could not reach SPAN panel {state.host} via MQTT: {e}')
+            LOGGER.warning(f'Could not reach SPAN panel {state.host} via MQTT: {e}; will retry in 60s')
+            if self._running and self.loop is not None:
+                self.loop.call_later(60.0, lambda: asyncio.run_coroutine_threadsafe(self._connect_panel_coro(state), self.loop))
         except Exception as e:
-            LOGGER.exception(f'Unexpected error connecting to SPAN panel {state.host}: {e}')
+            LOGGER.exception(f'Unexpected error connecting to SPAN panel {state.host}: {e}; will retry in 60s')
+            if self._running and self.loop is not None:
+                self.loop.call_later(60.0, lambda: asyncio.run_coroutine_threadsafe(self._connect_panel_coro(state), self.loop))
 
     def _handle_incoming_snapshot(self, state: PanelStreamState, snapshot: Any) -> None:
         """Throttling & filtering engine applied to incoming MQTT snapshots."""

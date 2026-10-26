@@ -332,6 +332,14 @@ class SpanAccess(object):
             'mainMeterEnergyConsumedWh': getattr(snapshot, 'main_meter_energy_consumed_wh', None),
             'mainMeterEnergyProducedWh': getattr(snapshot, 'main_meter_energy_produced_wh', None),
             'instantPowerUpdateTimeS': now_ts,
+            'powerFlowPv': getattr(snapshot, 'power_flow_pv', None),
+            'powerFlowBattery': getattr(snapshot, 'power_flow_battery', None),
+            'powerFlowGrid': getattr(snapshot, 'power_flow_grid', None),
+            'powerFlowSite': getattr(snapshot, 'power_flow_site', None),
+            'shedTotalTimeRemainingMin': getattr(snapshot, 'shed_total_time_remaining_min', None),
+            'shedTimeToPriorityShedMin': getattr(snapshot, 'shed_time_to_priority_shed_min', None),
+            'shedSocThresholdShedPercent': getattr(snapshot, 'shed_soc_threshold_shed_percent', None),
+            'shedSocThresholdReleasePercent': getattr(snapshot, 'shed_soc_threshold_release_percent', None),
         }
         self.span_data['panel_update_time'] = now_ts
 
@@ -430,6 +438,62 @@ class SpanAccess(object):
             return (self.span_data.get('panel_info') or {}).get('feedthroughPowerW')
         except Exception as e:
             return None    
+
+    def get_power_flow_pv(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('powerFlowPv')
+            return self._parse_float(val)
+        except Exception:
+            return None
+
+    def get_power_flow_battery(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('powerFlowBattery')
+            return self._parse_float(val)
+        except Exception:
+            return None
+
+    def get_power_flow_grid(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('powerFlowGrid')
+            return self._parse_float(val)
+        except Exception:
+            return None
+
+    def get_power_flow_site(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('powerFlowSite')
+            return self._parse_float(val)
+        except Exception:
+            return None
+
+    def get_shed_total_time_remaining(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('shedTotalTimeRemainingMin')
+            return int(val) if val is not None else None
+        except Exception:
+            return None
+
+    def get_shed_time_to_priority_shed(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('shedTimeToPriorityShedMin')
+            return int(val) if val is not None else None
+        except Exception:
+            return None
+
+    def get_shed_soc_threshold_shed(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('shedSocThresholdShedPercent')
+            return int(val) if val is not None else None
+        except Exception:
+            return None
+
+    def get_shed_soc_threshold_release(self):
+        try:
+            val = (self.span_data.get('panel_info') or {}).get('shedSocThresholdReleasePercent')
+            return int(val) if val is not None else None
+        except Exception:
+            return None
 
     def get_panel_update_time(self):
         logging.debug('get_panel_update_time')

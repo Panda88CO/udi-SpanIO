@@ -16,6 +16,14 @@ ST-nlsspanpanel-GV3-NAME = Grid State
 ST-nlsspanpanel-GV4-NAME = Grid Status
 ST-nlsspanpanel-GV5-NAME = Panel Update Time
 ST-nlsspanpanel-GV7-NAME = Backup Battery Capacity
+ST-nlsspanpanel-GV8-NAME = Solar Power Flow
+ST-nlsspanpanel-GV9-NAME = Battery Power Flow
+ST-nlsspanpanel-GV10-NAME = Grid Power Flow
+ST-nlsspanpanel-GV11-NAME = Home Site Load
+ST-nlsspanpanel-GV12-NAME = Backup Time Remaining
+ST-nlsspanpanel-GV13-NAME = Time to Next Shed
+ST-nlsspanpanel-GV14-NAME = Shed SOC Threshold
+ST-nlsspanpanel-GV15-NAME = Release SOC Threshold
 CMD-nlsspanpanel-UPDATE-NAME = Update Panels Data
 CMD-nlsspanpanel-QUERY-NAME = Query
 

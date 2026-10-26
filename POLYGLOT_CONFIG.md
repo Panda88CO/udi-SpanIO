@@ -79,6 +79,14 @@ Created for each configured SPAN panel:
 - **`GV4`** (Grid Status): `ON_GRID` / `OFF_GRID` / `Unknown`
 - **`GV5`** (Panel Update Time): Epoch timestamp of last successful panel data update (UOM 151)
 - **`GV7`** (Battery Capacity): Battery State of Charge percentage (when `BACKUP_BATTERY=TRUE`)
+- **`GV8`** (Solar Power Flow): Real-time solar production in Watts (UOM 73)
+- **`GV9`** (Battery Power Flow): Battery power in Watts (UOM 73, positive = discharging, negative = charging)
+- **`GV10`** (Grid Power Flow): Utility power in Watts (UOM 73, positive = importing, negative = exporting)
+- **`GV11`** (Home Site Load): Total household load consumption in Watts (UOM 73)
+- **`GV12`** (Backup Time Remaining): Projected total battery runtime in minutes (UOM 44)
+- **`GV13`** (Time to Next Shed): Projected minutes until next load shed threshold (UOM 44)
+- **`GV14`** (Shed SOC Threshold): Battery SOC % threshold that triggers circuit shedding (UOM 51)
+- **`GV15`** (Release SOC Threshold): Battery SOC % threshold that restores shed circuits (UOM 51)
 - **Commands**:
   - `UPDATE` (**Update Panels Data**): Updates panel timestamp and cascades updates to all breaker subnodes.
   - `QUERY` (**Query**): Refreshes panel drivers.

@@ -107,7 +107,7 @@ class udiSpanPanelNode(udi_interface.Node):
         try:
             updater = getattr(self.poly, 'updateJsonProfile', None)
             if callable(updater) and self.index_name_map:
-                payload = dynamic_profile_payload('1.0.1', self.index_name_map)
+                payload = dynamic_profile_payload('1.1.0', self.index_name_map)
                 updater(payload)
                 logging.info(f'Published dynamic CIRCUIT_LIST profile for {len(self.index_name_map)} circuits')
         except Exception as e:
@@ -279,6 +279,26 @@ class udiSpanPanelNode(udi_interface.Node):
         else:
             self.my_setDriver('GV7', None, 25, force=force)
 
+        # Sub-system power flows (Watts, UOM 73)
+        pv_pwr = self.span_panel.get_power_flow_pv()
+        self.my_setDriver('GV8', round(pv_pwr, 1) if isinstance(pv_pwr, (int, float)) else None, 73, force=force)
+        bat_pwr = self.span_panel.get_power_flow_battery()
+        self.my_setDriver('GV9', round(bat_pwr, 1) if isinstance(bat_pwr, (int, float)) else None, 73, force=force)
+        grid_flow = self.span_panel.get_power_flow_grid()
+        self.my_setDriver('GV10', round(grid_flow, 1) if isinstance(grid_flow, (int, float)) else None, 73, force=force)
+        site_flow = self.span_panel.get_power_flow_site()
+        self.my_setDriver('GV11', round(site_flow, 1) if isinstance(site_flow, (int, float)) else None, 73, force=force)
+
+        # Backup run-time forecasts and load shedding policies
+        shed_rem = self.span_panel.get_shed_total_time_remaining()
+        self.my_setDriver('GV12', shed_rem if isinstance(shed_rem, int) else None, 44, force=force)
+        shed_next = self.span_panel.get_shed_time_to_priority_shed()
+        self.my_setDriver('GV13', shed_next if isinstance(shed_next, int) else None, 44, force=force)
+        shed_th = self.span_panel.get_shed_soc_threshold_shed()
+        self.my_setDriver('GV14', shed_th if isinstance(shed_th, int) else None, 51, force=force)
+        rel_th = self.span_panel.get_shed_soc_threshold_release()
+        self.my_setDriver('GV15', rel_th if isinstance(rel_th, int) else None, 51, force=force)
+
     def runCmd(self, command):
         logging.debug(f'UI Call runCmd received on panel {self.name} ({self.address}): command={command}')
         super().runCmd(command)
@@ -334,4 +354,12 @@ class udiSpanPanelNode(udi_interface.Node):
         {'driver': 'GV4', 'value': 0, 'uom': 25, 'name': 'Grid Status'},  
         {'driver': 'GV5', 'value': 0, 'uom': 151, 'name': 'Panel Update Time'},  
         {'driver': 'GV7', 'value': 0, 'uom': 51, 'name': 'Backup Battery Capacity'},  
+        {'driver': 'GV8', 'value': 0, 'uom': 73, 'name': 'Solar Power Flow'},
+        {'driver': 'GV9', 'value': 0, 'uom': 73, 'name': 'Battery Power Flow'},
+        {'driver': 'GV10', 'value': 0, 'uom': 73, 'name': 'Grid Power Flow'},
+        {'driver': 'GV11', 'value': 0, 'uom': 73, 'name': 'Home Site Load'},
+        {'driver': 'GV12', 'value': 99, 'uom': 44, 'name': 'Backup Time Remaining'},
+        {'driver': 'GV13', 'value': 99, 'uom': 44, 'name': 'Time to Next Shed'},
+        {'driver': 'GV14', 'value': 99, 'uom': 51, 'name': 'Shed SOC Threshold'},
+        {'driver': 'GV15', 'value': 99, 'uom': 51, 'name': 'Release SOC Threshold'},
     ]

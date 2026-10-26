@@ -72,4 +72,9 @@
      <range uom="25" subset="97-99" nls="error"/>
   </editor>
 
+  <editor id="BACKUP_MINS">
+     <range uom="44" min="0" max="10080" prec="0" />
+     <range uom="25" subset="98-99" nls="NODATA" />
+  </editor>
+
 </editors> 

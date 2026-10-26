@@ -185,6 +185,22 @@ def profile_editors(circuit_names: Optional[Dict[int, str]] = None) -> List[Dict
             ],
         },
         {
+            "id": "BACKUP_MINS",
+            "ranges": [
+                {
+                    "uom": "44",
+                    "min": 0,
+                    "max": 10080,
+                    "prec": 0,
+                },
+                {
+                    "uom": "25",
+                    "subset": "98,99",
+                    "names": {"98": "None", "99": "No Data"},
+                },
+            ],
+        },
+        {
             "id": "HOURS",
             "ranges": [
                 {"uom": "20", "min": 0, "max": 100, "prec": 2},
@@ -297,6 +313,14 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
                 {"id": "GV4", "editor": "GRIDSTATUS", "name": "Grid Status"},
                 {"id": "GV5", "editor": "UTIME", "name": "Panel Update Time"},
                 {"id": "GV7", "editor": "PERCENT", "name": "Backup Battery Capacity"},
+                {"id": "GV8", "editor": "W", "name": "Solar Power Flow"},
+                {"id": "GV9", "editor": "W", "name": "Battery Power Flow"},
+                {"id": "GV10", "editor": "W", "name": "Grid Power Flow"},
+                {"id": "GV11", "editor": "W", "name": "Home Site Load"},
+                {"id": "GV12", "editor": "BACKUP_MINS", "name": "Backup Time Remaining"},
+                {"id": "GV13", "editor": "BACKUP_MINS", "name": "Time to Next Shed"},
+                {"id": "GV14", "editor": "PERCENT", "name": "Shed SOC Threshold"},
+                {"id": "GV15", "editor": "PERCENT", "name": "Release SOC Threshold"},
             ],
             "cmds": {
                 "sends": [],
@@ -394,7 +418,7 @@ def profile_nodedefs() -> List[Dict[str, Any]]:
     ]
 
 
-def dynamic_profile_payload(version: str = "1.0.1", circuit_names: Optional[Dict[int, str]] = None) -> Dict[str, Any]:
+def dynamic_profile_payload(version: str = "1.1.0", circuit_names: Optional[Dict[int, str]] = None) -> Dict[str, Any]:
     return {
         "version": version,
         "delete": {

@@ -28,6 +28,14 @@
          <st id="GV4" editor="GRIDSTATUS" />         
          <st id="GV5" editor="UTIME" />
          <st id="GV7" editor="PERCENT" />
+         <st id="GV8" editor="W" />
+         <st id="GV9" editor="W" />
+         <st id="GV10" editor="W" />
+         <st id="GV11" editor="W" />
+         <st id="GV12" editor="BACKUP_MINS" />
+         <st id="GV13" editor="BACKUP_MINS" />
+         <st id="GV14" editor="PERCENT" />
+         <st id="GV15" editor="PERCENT" />
       </sts>
       <cmds>
          <sends>

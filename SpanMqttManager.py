@@ -92,6 +92,7 @@ class PanelStreamState:
         self.circuit_powers: Dict[str, float] = {}
         self.circuit_states: Dict[str, str] = {}
         self.circuit_priorities: Dict[str, str] = {}
+        self.power_flows: Dict[str, float] = {}
         self.pending_timer: Optional[asyncio.TimerHandle] = None
 
 
@@ -102,10 +103,12 @@ class SpanMqttManager:
         self,
         min_update_interval: float = 30.0,
         power_threshold_w: float = 15.0,
+        power_threshold_pct: float = 5.0,
         heartbeat_interval: float = 900.0,
     ):
         self.min_update_interval = min_update_interval
         self.power_threshold_w = power_threshold_w
+        self.power_threshold_pct = power_threshold_pct
         self.heartbeat_interval = heartbeat_interval
 
         self.panels: Dict[str, PanelStreamState] = {}
@@ -270,6 +273,11 @@ class SpanMqttManager:
             if self._running and self.loop is not None:
                 self.loop.call_later(60.0, lambda: asyncio.run_coroutine_threadsafe(self._connect_panel_coro(state), self.loop))
 
+    def _calc_threshold(self, last_val: float) -> float:
+        """Computes dynamic trigger threshold = max(power_threshold_w, |last_val| * (power_threshold_pct / 100))."""
+        pct_delta = abs(last_val) * (self.power_threshold_pct / 100.0) if self.power_threshold_pct > 0 else 0.0
+        return max(self.power_threshold_w, pct_delta)
+
     def _handle_incoming_snapshot(self, state: PanelStreamState, snapshot: Any) -> None:
         """Throttling & filtering engine applied to incoming MQTT snapshots."""
         now = time.time()
@@ -280,7 +288,8 @@ class SpanMqttManager:
         power_delta_exceeded = False
 
         current_grid_pwr = getattr(snapshot, 'instant_grid_power_w', 0.0) or 0.0
-        if abs(current_grid_pwr - state.last_panel_power) >= self.power_threshold_w:
+        grid_thresh = self._calc_threshold(state.last_panel_power)
+        if abs(current_grid_pwr - state.last_panel_power) >= grid_thresh:
             power_delta_exceeded = True
 
         circuits = getattr(snapshot, 'circuits', {}) or {}
@@ -293,8 +302,21 @@ class SpanMqttManager:
                 discrete_change = True
             if cid in state.circuit_priorities and state.circuit_priorities[cid] != prio:
                 discrete_change = True
-            if cid in state.circuit_powers and abs(pwr - state.circuit_powers[cid]) >= self.power_threshold_w:
-                power_delta_exceeded = True
+            if cid in state.circuit_powers:
+                circ_thresh = self._calc_threshold(state.circuit_powers[cid])
+                if abs(pwr - state.circuit_powers[cid]) >= circ_thresh:
+                    power_delta_exceeded = True
+
+        flows = {
+            'pv': getattr(snapshot, 'power_flow_pv', None),
+            'battery': getattr(snapshot, 'power_flow_battery', None),
+            'site': getattr(snapshot, 'power_flow_site', None),
+        }
+        for flow_name, flow_val in flows.items():
+            if flow_val is not None and flow_name in state.power_flows:
+                flow_thresh = self._calc_threshold(state.power_flows[flow_name])
+                if abs(flow_val - state.power_flows[flow_name]) >= flow_thresh:
+                    power_delta_exceeded = True
 
         elapsed = now - state.last_dispatch_time
         heartbeat_due = elapsed >= self.heartbeat_interval
@@ -303,8 +325,8 @@ class SpanMqttManager:
         if discrete_change or (elapsed >= self.min_update_interval and (power_delta_exceeded or heartbeat_due)):
             self._dispatch_snapshot(state, snapshot, now)
         else:
-            # If a significant power delta occurred but we are within the 30s debounce window,
-            # schedule a deferred dispatch so the latest value is sent as soon as the 30s window expires.
+            # If a significant power delta occurred but we are within the debounce window,
+            # schedule a deferred dispatch so the latest value is sent as soon as the window expires.
             if power_delta_exceeded and state.pending_timer is None and self.loop is not None:
                 delay = max(0.5, self.min_update_interval - elapsed)
 
@@ -333,11 +355,46 @@ class SpanMqttManager:
             state.circuit_states[cid] = getattr(circuit, 'relay_state', '') or ''
             state.circuit_priorities[cid] = getattr(circuit, 'priority', '') or ''
 
+        flows = {
+            'pv': getattr(snapshot, 'power_flow_pv', None),
+            'battery': getattr(snapshot, 'power_flow_battery', None),
+            'site': getattr(snapshot, 'power_flow_site', None),
+        }
+        for flow_name, flow_val in flows.items():
+            if flow_val is not None:
+                state.power_flows[flow_name] = flow_val
+
         if state.callback:
             try:
                 state.callback(snapshot)
             except Exception as e:
                 LOGGER.error(f'Error executing snapshot callback for {state.host}: {e}')
+
+    def update_throttling_config(
+        self,
+        min_update_interval: Optional[float] = None,
+        power_threshold_w: Optional[float] = None,
+        power_threshold_pct: Optional[float] = None,
+        heartbeat_interval: Optional[float] = None,
+    ) -> None:
+        """Dynamically update throttling parameters at runtime."""
+        with self._lock:
+            if min_update_interval is not None:
+                self.min_update_interval = max(1.0, float(min_update_interval))
+            if power_threshold_w is not None:
+                self.power_threshold_w = max(0.0, float(power_threshold_w))
+            if power_threshold_pct is not None:
+                self.power_threshold_pct = max(0.0, float(power_threshold_pct))
+            if heartbeat_interval is not None:
+                self.heartbeat_interval = max(30.0, float(heartbeat_interval))
+
+            LOGGER.info(
+                f'SpanMqttManager throttling updated: '
+                f'min_update_interval={self.min_update_interval}s, '
+                f'power_threshold_w={self.power_threshold_w}W, '
+                f'power_threshold_pct={self.power_threshold_pct}%, '
+                f'heartbeat_interval={self.heartbeat_interval}s'
+            )
 
     def set_circuit_relay(self, host: str, circuit_id: str, relay_state: str) -> bool:
         """Thread-safe command to open/close a circuit relay via MQTT."""

@@ -18,7 +18,7 @@ except ImportError:
     logging.basicConfig(level=30)
 
 
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 class SPANController(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, random_string, mask2key, heartbeat, bool2ISY, my_setDriver
 
@@ -44,6 +44,7 @@ class SPANController(udi_interface.Node):
         self.mqtt_manager = SpanMqttManager(
             min_update_interval=30.0,
             power_threshold_w=15.0,
+            power_threshold_pct=5.0,
             heartbeat_interval=900.0,
         )
         self.mqtt_manager.start()
@@ -214,6 +215,56 @@ class SPANController(udi_interface.Node):
         else:
             logging.info('No PANEL_PASSPHRASES found')
             self.customParameters['PANEL_PASSPHRASES'] = 'enter list of passphrases'
+
+        # User-configurable throttling parameters
+        if 'POWER_THRESHOLD_WATTS' in self.customParameters:
+            try:
+                pwr_thresh = max(0.0, float(self.customParameters['POWER_THRESHOLD_WATTS']))
+            except (ValueError, TypeError):
+                pwr_thresh = 15.0
+                logging.warning(f"Invalid POWER_THRESHOLD_WATTS '{self.customParameters['POWER_THRESHOLD_WATTS']}', defaulting to 15.0")
+        else:
+            self.customParameters['POWER_THRESHOLD_WATTS'] = '15'
+            pwr_thresh = 15.0
+
+        if 'POWER_THRESHOLD_PCT' in self.customParameters:
+            try:
+                pwr_pct = max(0.0, float(self.customParameters['POWER_THRESHOLD_PCT']))
+            except (ValueError, TypeError):
+                pwr_pct = 5.0
+                logging.warning(f"Invalid POWER_THRESHOLD_PCT '{self.customParameters['POWER_THRESHOLD_PCT']}', defaulting to 5.0")
+        else:
+            self.customParameters['POWER_THRESHOLD_PCT'] = '5.0'
+            pwr_pct = 5.0
+
+        if 'MIN_UPDATE_INTERVAL' in self.customParameters:
+            try:
+                min_int = max(1.0, float(self.customParameters['MIN_UPDATE_INTERVAL']))
+            except (ValueError, TypeError):
+                min_int = 30.0
+                logging.warning(f"Invalid MIN_UPDATE_INTERVAL '{self.customParameters['MIN_UPDATE_INTERVAL']}', defaulting to 30.0")
+        else:
+            self.customParameters['MIN_UPDATE_INTERVAL'] = '30'
+            min_int = 30.0
+
+        if 'HEARTBEAT_INTERVAL_SECONDS' in self.customParameters:
+            try:
+                hb_int = max(30.0, float(self.customParameters['HEARTBEAT_INTERVAL_SECONDS']))
+            except (ValueError, TypeError):
+                hb_int = 900.0
+                logging.warning(f"Invalid HEARTBEAT_INTERVAL_SECONDS '{self.customParameters['HEARTBEAT_INTERVAL_SECONDS']}', defaulting to 900.0")
+        else:
+            self.customParameters['HEARTBEAT_INTERVAL_SECONDS'] = '900'
+            hb_int = 900.0
+
+        if hasattr(self, 'mqtt_manager') and self.mqtt_manager:
+            self.mqtt_manager.update_throttling_config(
+                min_update_interval=min_int,
+                power_threshold_w=pwr_thresh,
+                power_threshold_pct=pwr_pct,
+                heartbeat_interval=hb_int,
+            )
+
         logging.debug('customParamsHandler finish ')
         self.customParam_done = True
 

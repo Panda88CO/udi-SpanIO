@@ -76,6 +76,10 @@ In the Polyglot Dashboard under **Configuration**, configure the following param
 | `LOCAL_IP_ADDRESSES` | String | Yes | Space-separated list of local IP addresses for your SPAN panels (e.g. `192.168.1.50`). Use only **one** IP address per physical panel (Ethernet connection with a static DHCP reservation is strongly recommended). |
 | `PANEL_PASSPHRASES` | String | Recommended | Space-separated list of passphrases corresponding to each panel in `LOCAL_IP_ADDRESSES`. Enables real-time local MQTT streaming. |
 | `BACKUP_BATTERY` | String | No | Set to `TRUE` if you have an integrated home battery backup system (e.g. Tesla Powerwall, Enphase) connected to the SPAN panel to report State of Charge (SOC %), or `FALSE` otherwise. |
+| `POWER_THRESHOLD_WATTS` | Float | No | Minimum wattage delta required to trigger an update to IoX (default: `15.0` Watts). Absolute floor for low power circuits. |
+| `POWER_THRESHOLD_PCT` | Float | No | Percentage variation threshold relative to the last reported power (default: `5.0`%). Prevents high-load fluctuations ($\pm 20$–$50\text{W}$) on large consumers (EV chargers, heat pumps) from flooding IoX. Trigger threshold: $\max(\text{POWER\_THRESHOLD\_WATTS}, |P_{\text{last}}| \times \frac{\text{POWER\_THRESHOLD\_PCT}}{100})$. |
+| `MIN_UPDATE_INTERVAL` | Float | No | Minimum seconds between driver update dispatches per panel to protect the eisy event bus (default: `30.0` seconds). Changes within the window are debounced and dispatched immediately when the timer expires. |
+| `HEARTBEAT_INTERVAL_SECONDS` | Float | No | Fallback telemetry refresh interval in seconds (default: `900.0` seconds / 15 minutes). Forces fresh telemetry updates if power fluctuations remain below trigger thresholds. |
 
 ---
 
@@ -112,6 +116,7 @@ If no passphrase is provided:
 
 ## Polling & Heartbeat Behavior
 
+- **Controller Heartbeat**: Single pulsed signal on short poll (sends `DON`, waits 5 seconds, sends `DOF`) without blocking the event loop.
 - **shortPoll** (default 30s): When MQTT is active, redundant REST polling is suppressed; otherwise, polls panel telemetry, summary, and all circuit breakers.
 - **longPoll** (default 900s): Persists historical accumulation windows (`accum_data_<IP>.json`) across restarts and checks health.
 - **Timestamp Accuracy**: Timestamps (`GV5`, `GV4`, `GV9`, `GV20`) only advance when fresh, valid telemetry is received.

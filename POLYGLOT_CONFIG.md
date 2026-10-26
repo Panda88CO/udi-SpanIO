@@ -9,8 +9,12 @@ Navigate to the **Configuration** tab in the Polyglot dashboard for this node se
 | **`LOCAL_IP_ADDRESSES`** | String | Yes | Space-separated list of local IP addresses for each SPAN panel in your home (e.g. `192.168.1.100`). Use only **one** IP address per physical panel. A reserved or static DHCP IP address via an Ethernet connection is strongly recommended. |
 | **`PANEL_PASSPHRASES`** | String | Recommended | Space-separated list of local passphrases corresponding to each panel in `LOCAL_IP_ADDRESSES`. Enables high-performance, real-time push streaming via the modern SPAN local MQTT/Homie v2 API. |
 | **`BACKUP_BATTERY`** | String | No | Set to `TRUE` if your SPAN panel is connected to an integrated battery storage system (such as Tesla Powerwall or Enphase) to monitor backup battery State of Charge (`GV7`), or `FALSE` otherwise. |
+| **`POWER_THRESHOLD_WATTS`** | Float | No | Minimum wattage change required to trigger an update to IoX (default: `15.0` Watts). Serves as the absolute sensitivity floor for low loads. |
+| **`POWER_THRESHOLD_PCT`** | Float | No | Percentage variation threshold relative to the last reported power (default: `5.0`%). Prevents high-power continuous loads (such as EV chargers or HVAC pulling 5kW–10kW) from triggering updates on harmless $\pm 20$–$50$W line voltage noise. Set to `0` to disable percentage filtering. Trigger threshold: $\max(\text{POWER\_THRESHOLD\_WATTS}, |P_{\text{last}}| \times \frac{\text{POWER\_THRESHOLD\_PCT}}{100})$. |
+| **`MIN_UPDATE_INTERVAL`** | Float | No | Minimum seconds between driver update dispatches per panel to protect the eisy event bus (default: `30.0` seconds). Updates arriving within this window are debounced and dispatched immediately when the timer expires. |
+| **`HEARTBEAT_INTERVAL_SECONDS`** | Float | No | Fallback telemetry refresh interval in seconds (default: `900.0` seconds / 15 minutes). Forces fresh telemetry updates if power fluctuations remain below the trigger thresholds. |
 
-Click **Save** and restart the node server after making changes.
+Click **Save** in Polyglot after making changes. Configuration parameters take effect dynamically at runtime without requiring a restart.
 
 ---
 
@@ -45,10 +49,12 @@ If you have an older panel generation and cannot access the on-premise menu in t
 ### Recommended: Local MQTT v2 (Push Streaming)
 1. Configure `LOCAL_IP_ADDRESSES` and `PANEL_PASSPHRASES` in the Polyglot configuration.
 2. The node server connects directly to the panel's local MQTT broker (`span-panel-api`).
-3. Telemetry is streamed in real-time with automatic **eisy-friendly throttling**:
-   - Updates are debounced to a minimum 30-second interval.
-   - Power telemetry is updated whenever power changes by **$\ge$ 15W**.
-   - If power changes remain under 15W, a **15-minute fallback heartbeat** ensures status freshness without flooding the eisy event bus.
+3. Telemetry is streamed in real-time with automatic **eisy-friendly adaptive throttling**:
+   - Updates are debounced to a minimum interval (default: `30` seconds via `MIN_UPDATE_INTERVAL`).
+   - Power telemetry is updated whenever power changes by $\ge \max(\text{POWER\_THRESHOLD\_WATTS}, |P_{\text{last}}| \times \frac{\text{POWER\_THRESHOLD\_PCT}}{100})$.
+   - At lower loads, the absolute floor (`15W`) triggers sensitive reporting.
+   - At high loads (EV chargers, HVAC, solar arrays), percentage filtering (`5%`) suppresses harmless grid voltage noise ($\pm 20$–$50\text{W}$).
+   - If power stays steady, a fallback heartbeat (default: `900`s / 15 min via `HEARTBEAT_INTERVAL_SECONDS`) forces fresh telemetry.
    - Discrete state changes (breaker relay open/closed, priority changes) are dispatched **immediately**.
 
 ### Legacy REST v1 Pairing (Fallback)
@@ -64,7 +70,7 @@ If no passphrase is provided:
 ### 1. Controller Node (`controller`)
 - **`ST`** (Node Status): `Connected` / `Not Connected`
 - **`GV1`** (Monitored Panels): Total number of SPAN panels monitored
-- **Heartbeat**: Periodic `DON` / `DOF` toggle
+- **Heartbeat**: Single pulsed signal on short poll (sends `DON`, waits 5 seconds, sends `DOF`)
 - **Commands**:
   - `UPDATE` (**Update System Data**): Refreshes telemetry across all panels and breaker subnodes.
   - `QUERY` (**Query**): Refreshes controller status drivers.

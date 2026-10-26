@@ -16,6 +16,7 @@ except ImportError:
 
 from os import truncate
 import time
+import threading
 import math
 import numbers 
 import random, string
@@ -264,14 +265,16 @@ def send_temp_to_isy (self, temperature, stateVar):
 
 
 def heartbeat(self):
-    logging.debug('heartbeat: ' + str(self.hb))
-    
-    if self.hb == 0:
-        self.reportCmd('DON',2)
-        self.hb = 1
-    else:
-        self.reportCmd('DOF',2)
-        self.hb = 0
+    logging.debug('heartbeat: pulse DON -> wait 5s -> DOF')
+    def _pulse():
+        try:
+            self.reportCmd('DON', 2)
+            time.sleep(5)
+            self.reportCmd('DOF', 2)
+        except Exception as e:
+            logging.error(f'Error pulsing heartbeat: {e}')
+
+    threading.Thread(target=_pulse, name='HeartbeatPulse', daemon=True).start()
 
 def handleLevelChange(self, level):
     logging.info('New log level: {}'.format(level))        

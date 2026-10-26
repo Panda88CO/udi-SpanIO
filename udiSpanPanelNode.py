@@ -107,7 +107,7 @@ class udiSpanPanelNode(udi_interface.Node):
         try:
             updater = getattr(self.poly, 'updateJsonProfile', None)
             if callable(updater) and self.index_name_map:
-                payload = dynamic_profile_payload('1.0.0', self.index_name_map)
+                payload = dynamic_profile_payload('1.0.1', self.index_name_map)
                 updater(payload)
                 logging.info(f'Published dynamic CIRCUIT_LIST profile for {len(self.index_name_map)} circuits')
         except Exception as e:

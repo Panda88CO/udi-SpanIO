@@ -376,14 +376,24 @@ class SpanMqttManager:
             LOGGER.warning(f'Cannot set priority for circuit {circuit_id} on {host}: panel not connected via MQTT')
             return False
 
-        norm_prio = priority.upper().replace(' ', '_')
-        if norm_prio not in ('MUST_HAVE', 'NICE_TO_HAVE', 'NOT_ESSENTIAL'):
+        prio_map = {
+            'MUST_HAVE': 'NEVER',
+            'NEVER': 'NEVER',
+            'NICE_TO_HAVE': 'SOC_THRESHOLD',
+            'SOC_THRESHOLD': 'SOC_THRESHOLD',
+            'NOT_ESSENTIAL': 'OFF_GRID',
+            'NON_ESSENTIAL': 'OFF_GRID',
+            'OFF_GRID': 'OFF_GRID',
+        }
+        norm_input = str(priority).upper().replace(' ', '_')
+        wire_prio = prio_map.get(norm_input)
+        if not wire_prio:
             LOGGER.error(f'Invalid circuit priority: {priority}')
             return False
 
         async def coro() -> None:
-            LOGGER.info(f'Sending MQTT set_circuit_priority({circuit_id}, {norm_prio}) on {host}')
-            await state.client.set_circuit_priority(circuit_id, norm_prio)
+            LOGGER.info(f'Sending MQTT set_circuit_priority({circuit_id}, {wire_prio}) on {host}')
+            await state.client.set_circuit_priority(circuit_id, wire_prio)
 
         try:
             future = asyncio.run_coroutine_threadsafe(coro(), self.loop)

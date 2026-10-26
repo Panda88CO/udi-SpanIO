@@ -94,11 +94,11 @@ def priority2ISY(self, state):
     if isinstance(state, (int, float)):
         return int(state) if state in [0, 1, 2] else 99
     s = str(state).strip().upper().replace(' ', '_')
-    if s == 'MUST_HAVE':
+    if s in ['MUST_HAVE', 'NEVER']:
         return 0
-    elif s == 'NICE_TO_HAVE':
+    elif s in ['NICE_TO_HAVE', 'SOC_THRESHOLD']:
         return 1
-    elif s in ['NOT_ESSENTIAL', 'NON_ESSENTIAL']:
+    elif s in ['NOT_ESSENTIAL', 'NON_ESSENTIAL', 'OFF_GRID']:
         return 2
     else:
         return 99

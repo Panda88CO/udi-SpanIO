@@ -7,6 +7,7 @@ import json
 from udiSpanPanelNode import udiSpanPanelNode
 from SpanMqttManager import SpanMqttManager
 from dynamic_profile import dynamic_profile_payload
+from udiLib import SpanNodeNameManager
 try:
     import udi_interface
     logging = udi_interface.LOGGER
@@ -18,7 +19,7 @@ except ImportError:
     logging.basicConfig(level=30)
 
 
-VERSION = '1.1.2'
+VERSION = '1.1.3'
 class SPANController(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, random_string, mask2key, heartbeat, bool2ISY, my_setDriver
 
@@ -52,6 +53,7 @@ class SPANController(udi_interface.Node):
         self.customParameters = Custom(self.poly, 'customparams')
         self.customData = Custom(self.poly, 'customdata')
         self.Notices = Custom(self.poly, 'notices')
+        self.name_manager = SpanNodeNameManager(poly=self.poly, custom_data=self.customData)
        
         logging.debug('before subscribe')
         self.poly.subscribe(self.poly.STOP, self.stop)
@@ -150,7 +152,8 @@ class SPANController(udi_interface.Node):
     def customDataHandler(self, Data):
         logging.debug('customDataHandler')
         self.customData.load(Data)
-        #logging.debug('handleData load - {}'.format(self.customData))
+        if hasattr(self, 'name_manager') and self.name_manager:
+            self.name_manager.set_custom_data(self.customData)
     
  
     def check_config(self):
@@ -324,6 +327,11 @@ class SPANController(udi_interface.Node):
         else:
             uid = self.customData['uid']
         self.my_setDriver('GV1', len(self.span_ip_list))
+
+        resolved_ctrl_name, _ = self.name_manager.resolve_node_name('controller', 'Controller', poly=self.poly, nodes_in_db=self.nodes_in_db)
+        if resolved_ctrl_name and resolved_ctrl_name != self.name:
+            self.name = resolved_ctrl_name
+
         for indx, IPaddress in enumerate(self.span_ip_list):
             #self.span_panel[indx]= SpanAccess(IPaddress)    
             token = None
@@ -333,6 +341,9 @@ class SPANController(udi_interface.Node):
             address = self.poly.getValidAddress(tempstr)
 
             nodename = 'SPAN '+str(IPaddress)
+            resolved_panel_name, panel_rename = self.name_manager.resolve_node_name(
+                address, nodename, poly=self.poly, nodes_in_db=self.nodes_in_db
+            )
             passphrase = self.span_passphrases[indx] if indx < len(self.span_passphrases) else None
 
             if IPaddress in self.customData.keys():
@@ -349,10 +360,11 @@ class SPANController(udi_interface.Node):
 
             self.poly.Notices.clear()
 
-            logging.debug(f'Panel info : {address} , {nodename}')
+            logging.debug(f'Panel info : {address} , {resolved_panel_name}')
             self.span_panel[IPaddress] = udiSpanPanelNode(
-                self.poly, address, address, nodename, IPaddress, token, self.battery_backup,
-                passphrase=passphrase, mqtt_manager=self.mqtt_manager
+                self.poly, address, address, resolved_panel_name, IPaddress, token, self.battery_backup,
+                passphrase=passphrase, mqtt_manager=self.mqtt_manager, name_manager=self.name_manager,
+                rename_needed=panel_rename
             )    
             # need to retrieve unique ID and Token and store in customData          
             

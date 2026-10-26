@@ -15,6 +15,8 @@ except ImportError:
     logging.basicConfig(level=logging.INFO)
 
 from os import truncate
+import os
+import json
 import time
 import threading
 import math
@@ -278,3 +280,177 @@ def heartbeat(self):
 
 def handleLevelChange(self, level):
     logging.info('New log level: {}'.format(level))        
+
+
+class SpanNodeNameManager:
+    """
+    Manages node name persistence and synchronization between the SPAN API
+    and Polyglot PG3x / IoX.
+
+    Rules:
+    1. If the node name was changed in PG3x / IoX, we remember and use the stored/mapped name.
+    2. If a new name arrives from the SPAN API (different from the stored original name),
+       the new API name takes precedence: we overwrite the stored mapped name and update
+       PG3x / IoX (rename=True).
+    3. If the API name matches the stored original name, but the stored/PG3x name is different,
+       we use the stored name (preserving user customization).
+    """
+
+    FILE_PATH = 'node_names.json'
+
+    def __init__(self, poly=None, custom_data=None):
+        self.poly = poly
+        self.custom_data = custom_data
+        self.name_map = {}  # {address: {'original': str, 'mapped': str}}
+        self.load()
+
+    def set_custom_data(self, custom_data):
+        self.custom_data = custom_data
+        self.load()
+
+    def load(self):
+        # 1. Load from local file if exists
+        try:
+            if os.path.exists(self.FILE_PATH):
+                with open(self.FILE_PATH, 'r') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        for addr, entry in data.items():
+                            if isinstance(entry, dict):
+                                self.name_map[addr] = {
+                                    'original': str(entry.get('original', '')),
+                                    'mapped': str(entry.get('mapped', ''))
+                                }
+        except Exception as e:
+            logging.warning(f'SpanNodeNameManager: could not read {self.FILE_PATH}: {e}')
+
+        # 2. Merge with custom_data if available
+        if self.custom_data is not None:
+            try:
+                cd_map = self.custom_data.get('node_name_map')
+                if isinstance(cd_map, dict):
+                    for addr, entry in cd_map.items():
+                        if isinstance(entry, dict):
+                            self.name_map[addr] = {
+                                'original': str(entry.get('original', '')),
+                                'mapped': str(entry.get('mapped', ''))
+                            }
+            except Exception as e:
+                logging.warning(f'SpanNodeNameManager: could not read custom_data: {e}')
+
+    def save(self):
+        # 1. Save to custom_data (persisted in PG3 database)
+        if self.custom_data is not None:
+            try:
+                self.custom_data['node_name_map'] = dict(self.name_map)
+            except Exception as e:
+                logging.warning(f'SpanNodeNameManager: could not save to custom_data: {e}')
+
+        # 2. Save to local file
+        try:
+            with open(self.FILE_PATH, 'w') as f:
+                json.dump(self.name_map, f, indent=2)
+        except Exception as e:
+            logging.warning(f'SpanNodeNameManager: could not write {self.FILE_PATH}: {e}')
+
+    def get_db_name(self, address, poly=None, nodes_in_db=None):
+        """Finds current name for address in PG3 DB."""
+        p = poly or self.poly
+        if p and hasattr(p, 'getNodeNameFromDb') and callable(getattr(p, 'getNodeNameFromDb')):
+            try:
+                name = p.getNodeNameFromDb(address)
+                if name:
+                    return str(name).strip()
+            except Exception:
+                pass
+
+        if nodes_in_db:
+            if isinstance(nodes_in_db, list):
+                for n in nodes_in_db:
+                    if isinstance(n, dict) and n.get('address') == address:
+                        name = n.get('name')
+                        if name:
+                            return str(name).strip()
+            elif isinstance(nodes_in_db, dict):
+                n = nodes_in_db.get(address)
+                if isinstance(n, dict):
+                    name = n.get('name')
+                    if name:
+                        return str(name).strip()
+
+        if p and hasattr(p, 'getNodesFromDb') and callable(getattr(p, 'getNodesFromDb')):
+            try:
+                db_nodes = p.getNodesFromDb()
+                if isinstance(db_nodes, list):
+                    for n in db_nodes:
+                        if isinstance(n, dict) and n.get('address') == address:
+                            name = n.get('name')
+                            if name:
+                                return str(name).strip()
+                elif isinstance(db_nodes, dict):
+                    n = db_nodes.get(address)
+                    if isinstance(n, dict):
+                        name = n.get('name')
+                        if name:
+                            return str(name).strip()
+            except Exception:
+                pass
+
+        return None
+
+    def resolve_node_name(self, address, api_name, poly=None, nodes_in_db=None):
+        """
+        Resolves the appropriate name for a node according to the rules:
+        - If original name is new (api_name != stored original), overwrite PG3x (rename=True).
+        - If original name matches stored original, but stored mapped name (or PG3x DB name)
+          is different, use the stored mapped name (rename=False).
+        - Returns (resolved_name, rename_needed).
+        """
+        p = poly or self.poly
+        clean_api_name = p.getValidName(api_name) if p and hasattr(p, 'getValidName') else str(api_name).strip()
+        db_name = self.get_db_name(address, p, nodes_in_db)
+
+        entry = self.name_map.get(address)
+        if not entry or not isinstance(entry, dict):
+            # First time seeing this node
+            if db_name and db_name != clean_api_name:
+                # Existing node in PG3 DB already has a custom name from user
+                stored_orig = clean_api_name
+                stored_mapped = db_name
+                resolved_name = db_name
+                rename_needed = False
+                logging.info(f'SpanNodeNameManager [{address}]: Initialized existing DB mapped name "{resolved_name}" (API original was "{stored_orig}")')
+            else:
+                stored_orig = clean_api_name
+                stored_mapped = clean_api_name
+                resolved_name = clean_api_name
+                rename_needed = False
+                logging.info(f'SpanNodeNameManager [{address}]: Initialized new node with API name "{resolved_name}"')
+
+            self.name_map[address] = {'original': stored_orig, 'mapped': stored_mapped}
+            self.save()
+            return resolved_name, rename_needed
+
+        stored_orig = entry.get('original')
+        stored_mapped = entry.get('mapped')
+
+        # Rule 1: Is original name from API new?
+        if stored_orig is not None and clean_api_name != stored_orig:
+            logging.info(f'SpanNodeNameManager [{address}]: New name from API! "{stored_orig}" -> "{clean_api_name}". Overwriting mapped name "{stored_mapped}".')
+            self.name_map[address] = {'original': clean_api_name, 'mapped': clean_api_name}
+            self.save()
+            return clean_api_name, True
+
+        # Rule 2: Original name unchanged. Check if user changed name in PG3x / IoX
+        if db_name and db_name != stored_mapped:
+            logging.info(f'SpanNodeNameManager [{address}]: Detected name change in PG3x: "{stored_mapped}" -> "{db_name}". Updating mapped name.')
+            stored_mapped = db_name
+            self.name_map[address] = {'original': stored_orig, 'mapped': stored_mapped}
+            self.save()
+
+        # If stored name is different from original, use stored name
+        if stored_mapped and stored_mapped != stored_orig:
+            logging.debug(f'SpanNodeNameManager [{address}]: Using stored mapped name "{stored_mapped}" (API name is "{stored_orig}")')
+            return stored_mapped, False
+
+        return clean_api_name, False

@@ -28,7 +28,7 @@ except ImportError:
 class udiSpanSummaryNode(udi_interface.Node):
     from udiLib import node_queue, wait_for_node_done, my_setDriver
 
-    def __init__(self, polyglot, primary, address, name, span_panel, circuit_index_map: Optional[Dict[str, int]] = None):
+    def __init__(self, polyglot, primary, address, name, span_panel, circuit_index_map: Optional[Dict[str, int]] = None, rename_needed: bool = False):
         super().__init__(polyglot, primary, address, name)
         logging.info(f'_init_ Span Summary Node {name} ({address})')
         self.poly = polyglot
@@ -44,7 +44,10 @@ class udiSpanSummaryNode(udi_interface.Node):
 
         self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
         self.poly.subscribe(self.poly.START, self.start, address)
-        self.poly.addNode(self)
+        try:
+            self.poly.addNode(self, rename=rename_needed)
+        except TypeError:
+            self.poly.addNode(self)
         self.wait_for_node_done(address)
         self.node = self.poly.getNode(address) or self
         time.sleep(0.1)

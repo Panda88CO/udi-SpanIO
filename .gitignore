@@ -1,1 +1,4 @@
 *.pyc
+node_names.json
+accum_data_*.json
+circuitdata.json

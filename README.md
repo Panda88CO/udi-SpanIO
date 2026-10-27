@@ -64,6 +64,13 @@ Starting with **v1.0.0**, the node server supports real-time push streaming via 
 - **Dynamic Profile Provisioning**:
   - Automatically provisions profile definitions (editors, node definitions, translations) to IoX via PG3x dynamic profile support (`updateJsonProfile`), keeping definitions synchronized without requiring manual profile installations or IoX restarts.
   - Includes a pre-packaged static profile (`profile.zip` with `version.txt`).
+- **Intelligent Node Name Management & Persistence**:
+  - **Custom Renaming in IoX**: Any custom names assigned to nodes (Controller, Panels, Breakers, Summary Node) via IoX Admin Console or PG3x are remembered across restarts and never overwritten.
+  - **Automatic SPAN App Sync**: If a circuit is renamed upstream in the SPAN mobile app, the new API name is automatically detected, updates the node name in PG3x/IoX, and refreshes the dynamic UOM 25 profile dropdowns.
+  - **Live Runtime Detection**: Name changes from either IoX or SPAN are synced live during background polling cycles and manual update commands without requiring a node server restart.
+- **Thread-Safe Historical Energy Accumulation**:
+  - Thread-locked concurrency engine for 1-hour and 24-hour energy averages (`accum_data_<IP>.json`), preventing race conditions between the real-time MQTT streaming thread and background Polyglot polling threads.
+  - Optimized disk I/O ensures accumulation data is saved cleanly without unnecessary flash storage wear on eisy.
 
 ---
 
@@ -118,5 +125,6 @@ If no passphrase is provided:
 
 - **Controller Heartbeat**: Single pulsed signal on short poll (sends `DON`, waits 5 seconds, sends `DOF`) without blocking the event loop.
 - **shortPoll** (default 30s): When MQTT is active, redundant REST polling is suppressed; otherwise, polls panel telemetry, summary, and all circuit breakers.
-- **longPoll** (default 900s): Persists historical accumulation windows (`accum_data_<IP>.json`) across restarts and checks health.
+- **longPoll** (default 900s): Persists historical accumulation windows (`accum_data_<IP>.json`) across restarts using thread-safe snapshot serialization, checks for node name changes, and validates health.
 - **Timestamp Accuracy**: Timestamps (`GV5`, `GV4`, `GV9`, `GV20`) only advance when fresh, valid telemetry is received.
+- **Node Name Persistence**: Stored mappings (`customData['node_name_map']` and `node_names.json`) ensure custom IoX names are preserved across reboots, while new names from the SPAN API automatically trigger live updates.

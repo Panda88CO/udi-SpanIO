@@ -150,5 +150,10 @@ Created dynamically for every circuit breaker discovered on the panel:
 ## Polling & Self-Healing
 
 - **shortPoll (30s default)**: If MQTT streaming is active, redundant REST polling is suppressed; otherwise, updates panel, summary, and circuit breaker telemetry.
-- **longPoll (900s default)**: Persists historical accumulation windows (`accum_data_<IP>.json`) across restarts and runs health checks.
+- **longPoll (900s default)**: Recalculates 1-hour and 24-hour averages, persists historical accumulation windows (`accum_data_<IP>.json`) across restarts using thread-safe serialization, and checks for live node name updates.
 - **Dynamic Profile Provisioning**: Breaker names discovered at boot or on refresh are automatically published to IoX via PG3x `updateJsonProfile`, generating the enumerated UOM 25 editor `CIRCUIT_LIST` so the Admin Console displays human-readable names.
+- **Intelligent Node Name Synchronization**:
+  - **Custom IoX Names Preserved**: If you rename any node (Controller, Panel, Breakers, Summary Node) in the IoX Admin Console or PG3x, the node server remembers your custom name across restarts and will not overwrite it.
+  - **SPAN App Rename Sync**: If you rename a circuit in the SPAN mobile app, the new API name is detected automatically, updates the node name in IoX/PG3x, and republishes the dynamic profile.
+  - **Dual Persistence**: Names are backed up in `customData['node_name_map']` and cached locally in `node_names.json`.
+- **Thread-Safe Accumulation**: The 1-hour and 24-hour historical energy engine utilizes concurrency locks, eliminating race conditions between high-frequency MQTT streaming updates and background polling/disk serialization.

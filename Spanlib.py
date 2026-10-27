@@ -4,6 +4,7 @@ import requests
 import time
 import json
 import os
+import threading
 #from datetime import datetime, timezone
 
 try:
@@ -32,6 +33,7 @@ class SpanAccess(object):
         #self.REGISTER    = '/register'
         self.span_data = {}
         self.accum_data = {}
+        self._accum_lock = threading.Lock()
         self.SAVE_TO_FILE = False
         self.load_accum_data()
 
@@ -137,14 +139,15 @@ class SpanAccess(object):
             if os.path.exists(filename):
                 with open(filename, 'r') as f:
                     data = json.load(f)
-                    self.accum_data = {}
-                    if isinstance(data, dict):
-                        for breaker_id, records in data.items():
-                            self.accum_data[breaker_id] = {}
-                            if isinstance(records, dict):
-                                for k, v in records.items():
-                                    t = int(k) if str(k).isdigit() else k
-                                    self.accum_data[breaker_id][t] = v
+                    with self._accum_lock:
+                        self.accum_data = {}
+                        if isinstance(data, dict):
+                            for breaker_id, records in data.items():
+                                self.accum_data[breaker_id] = {}
+                                if isinstance(records, dict):
+                                    for k, v in records.items():
+                                        t = int(k) if str(k).isdigit() else k
+                                        self.accum_data[breaker_id][t] = v
                 logging.info(f'Loaded accum_data for {self.IP_address} from {filename} ({len(self.accum_data)} breakers)')
         except Exception as e:
             logging.error(f'Error loading accum_data from {filename}: {e}')
@@ -152,10 +155,14 @@ class SpanAccess(object):
     def save_accum_data(self):
         filename = f'accum_data_{self.IP_address}.json'
         try:
-            if self.accum_data:
-                with open(filename, 'w') as f:
-                    json.dump(self.accum_data, f, indent=2)
-                logging.debug(f'Saved accum_data for {self.IP_address} to {filename}')
+            with self._accum_lock:
+                if not self.accum_data:
+                    return
+                # Create a snapshot copy of the nested dict under lock so iteration cannot fail
+                data_copy = {b_id: dict(records) for b_id, records in self.accum_data.items() if isinstance(records, dict)}
+            with open(filename, 'w') as f:
+                json.dump(data_copy, f, indent=2)
+            logging.debug(f'Saved accum_data for {self.IP_address} to {filename}')
         except Exception as e:
             logging.error(f'Error saving accum_data to {filename}: {e}')
 
@@ -170,7 +177,8 @@ class SpanAccess(object):
         else:
             self.update_Accum_EnergyBreaker(breaker_id)
 
-        self.save_accum_data()
+        if save_to_file:
+            self.save_accum_data()
 
     def update_Accum_EnergyBreaker(self, breaker_id ):
         hourSec = 3600 # 60*60
@@ -199,47 +207,48 @@ class SpanAccess(object):
         produced_energy = self._parse_float(produced_energy) or 0.0
         consumed_energy = self._parse_float(consumed_energy) or 0.0
 
-        if breaker_id not in self.accum_data:
-            self.accum_data[breaker_id] = {}
+        with self._accum_lock:
+            if breaker_id not in self.accum_data:
+                self.accum_data[breaker_id] = {}
 
-        self.accum_data[breaker_id][update_time] = {'update_time': update_time, 'producedWh': produced_energy, 'consumedWh': consumed_energy}
-        time_1_hour = update_time - hourSec
-        time_24_hour = update_time - daySec
-        t_1hour = update_time
-        t_24hour = update_time
-        prod_1_hour = produced_energy
-        cons_1_hour = consumed_energy
-        prod_24_hour = produced_energy
-        cons_24_hour = consumed_energy
-        hour_ok = False
-        day_ok = False
-        try:
-            for saved_time in self.accum_data[breaker_id]:
-                if saved_time <= time_1_hour:
-                    hour_ok = True
-                if saved_time <= time_24_hour:
-                    day_ok = True
-                if (abs(saved_time - time_1_hour) < abs(t_1hour - time_1_hour)):
-                    t_1hour = saved_time
-                    prod_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
-                    cons_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
-                if (abs(saved_time - time_24_hour) < abs(t_24hour - time_24_hour)):
-                    t_24hour = saved_time
-                    prod_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
-                    cons_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
-        except Exception as e:
-            logging.error(f'ERROR UPDATE ACCUM ENERGY {e}')
-
-        try:
-            if day_ok:
-                delete_list = []
+            self.accum_data[breaker_id][update_time] = {'update_time': update_time, 'producedWh': produced_energy, 'consumedWh': consumed_energy}
+            time_1_hour = update_time - hourSec
+            time_24_hour = update_time - daySec
+            t_1hour = update_time
+            t_24hour = update_time
+            prod_1_hour = produced_energy
+            cons_1_hour = consumed_energy
+            prod_24_hour = produced_energy
+            cons_24_hour = consumed_energy
+            hour_ok = False
+            day_ok = False
+            try:
                 for saved_time in list(self.accum_data[breaker_id].keys()):
-                    if saved_time < t_24hour:
-                        delete_list.append(saved_time)
-                for st in delete_list:
-                    del self.accum_data[breaker_id][st]
-        except Exception as e:
-            logging.error(f'Exception delete data {e}')
+                    if saved_time <= time_1_hour:
+                        hour_ok = True
+                    if saved_time <= time_24_hour:
+                        day_ok = True
+                    if (abs(saved_time - time_1_hour) < abs(t_1hour - time_1_hour)):
+                        t_1hour = saved_time
+                        prod_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
+                        cons_1_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
+                    if (abs(saved_time - time_24_hour) < abs(t_24hour - time_24_hour)):
+                        t_24hour = saved_time
+                        prod_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('producedWh')
+                        cons_24_hour = self.accum_data.get(breaker_id, {}).get(saved_time, {}).get('consumedWh')
+            except Exception as e:
+                logging.error(f'ERROR UPDATE ACCUM ENERGY {e}')
+
+            try:
+                if day_ok:
+                    delete_list = []
+                    for saved_time in list(self.accum_data[breaker_id].keys()):
+                        if saved_time < t_24hour:
+                            delete_list.append(saved_time)
+                    for st in delete_list:
+                        del self.accum_data[breaker_id][st]
+            except Exception as e:
+                logging.error(f'Exception delete data {e}')
 
         try:
             circuit_entry = (self.span_data.get('circuit_info') or {}).get(breaker_id)

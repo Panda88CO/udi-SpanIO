@@ -33,11 +33,18 @@ try:
         SpanPanelTimeoutError,
         SpanPanelAPIError,
     )
+    try:
+        from span_panel_api.exceptions import SpanPanelAdapterMissingError
+    except ImportError:
+        class SpanPanelAdapterMissingError(SpanPanelError):
+            pass
     SPAN_MQTT_AVAILABLE = True
 except ImportError:
     SPAN_MQTT_AVAILABLE = False
     SpanPanelSnapshot = Any
     MqttClientConfig = Any
+    class SpanPanelAdapterMissingError(Exception):
+        pass
 
 
 LOGGER = logging.getLogger(__name__)
@@ -52,23 +59,26 @@ LOGGER = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _ORIG_GETADDRINFO = socket.getaddrinfo
 _DNS_HOST_OVERRIDES: Dict[str, str] = {}
+_DNS_LOCK = threading.Lock()
 
 
 def _custom_getaddrinfo(host, port, *args, **kwargs):
     """Intercept DNS lookups for SPAN panel .local hostnames to map to IP addresses."""
     if isinstance(host, str):
         cleaned = host.rstrip('.').lower()
-        if cleaned in _DNS_HOST_OVERRIDES:
-            target = _DNS_HOST_OVERRIDES[cleaned]
+        with _DNS_LOCK:
+            target = _DNS_HOST_OVERRIDES.get(cleaned)
+            if target is None and cleaned.endswith('.local') and len(_DNS_HOST_OVERRIDES) >= 1:
+                for registered_host, target_ip in _DNS_HOST_OVERRIDES.items():
+                    if cleaned in registered_host or registered_host in cleaned:
+                        target = target_ip
+                        break
+                if target is None:
+                    unique_ips = set(_DNS_HOST_OVERRIDES.values())
+                    if len(unique_ips) == 1:
+                        target = next(iter(unique_ips))
+        if target is not None:
             return _ORIG_GETADDRINFO(target, port, *args, **kwargs)
-        # Fallback for .local SPAN broker hosts
-        if cleaned.endswith('.local') and len(_DNS_HOST_OVERRIDES) >= 1:
-            for registered_host, target_ip in _DNS_HOST_OVERRIDES.items():
-                if cleaned in registered_host or registered_host in cleaned:
-                    return _ORIG_GETADDRINFO(target_ip, port, *args, **kwargs)
-            unique_ips = set(_DNS_HOST_OVERRIDES.values())
-            if len(unique_ips) == 1:
-                return _ORIG_GETADDRINFO(next(iter(unique_ips)), port, *args, **kwargs)
     return _ORIG_GETADDRINFO(host, port, *args, **kwargs)
 
 
@@ -189,7 +199,8 @@ class SpanMqttManager:
         LOGGER.info(f'Connecting to SPAN panel {state.host} via MQTT/Homie v2...')
         try:
             # Map host IP itself in override dictionary
-            _DNS_HOST_OVERRIDES[state.host.rstrip('.').lower()] = state.host
+            with _DNS_LOCK:
+                _DNS_HOST_OVERRIDES[state.host.rstrip('.').lower()] = state.host
 
             # 1. Register with the panel to obtain broker host and TLS/MQTT credentials
             LOGGER.debug(f'Registering v2 credentials with SPAN panel at {state.host}...')
@@ -201,18 +212,19 @@ class SpanMqttManager:
 
             # 2. Map panel broker hostnames to panel IP to ensure mDNS .local resolves
             # on platforms without mDNS daemon (e.g. eisy/FreeBSD) while preserving TLS SNI
-            if auth_resp.ebus_broker_host:
-                broker_h = auth_resp.ebus_broker_host.rstrip('.').lower()
-                _DNS_HOST_OVERRIDES[broker_h] = state.host
-                LOGGER.info(f'Mapped SPAN broker host {broker_h} -> {state.host}')
-            if auth_resp.hostname:
-                h = auth_resp.hostname.rstrip('.').lower()
-                _DNS_HOST_OVERRIDES[h] = state.host
-                _DNS_HOST_OVERRIDES[f'{h}.local'] = state.host
-            if auth_resp.serial_number:
-                s = auth_resp.serial_number.lower()
-                _DNS_HOST_OVERRIDES[f'span-{s}.local'] = state.host
-                _DNS_HOST_OVERRIDES[f'{s}.local'] = state.host
+            with _DNS_LOCK:
+                if auth_resp.ebus_broker_host:
+                    broker_h = auth_resp.ebus_broker_host.rstrip('.').lower()
+                    _DNS_HOST_OVERRIDES[broker_h] = state.host
+                    LOGGER.info(f'Mapped SPAN broker host {broker_h} -> {state.host}')
+                if auth_resp.hostname:
+                    h = auth_resp.hostname.rstrip('.').lower()
+                    _DNS_HOST_OVERRIDES[h] = state.host
+                    _DNS_HOST_OVERRIDES[f'{h}.local'] = state.host
+                if auth_resp.serial_number:
+                    s = auth_resp.serial_number.lower()
+                    _DNS_HOST_OVERRIDES[f'span-{s}.local'] = state.host
+                    _DNS_HOST_OVERRIDES[f'{s}.local'] = state.host
 
             mqtt_config = MqttClientConfig(
                 broker_host=auth_resp.ebus_broker_host,
@@ -262,6 +274,11 @@ class SpanMqttManager:
             except Exception as e:
                 LOGGER.debug(f'Initial snapshot not immediately ready for {state.host}: {e}')
 
+        except SpanPanelAdapterMissingError as e:
+            LOGGER.error(
+                f'Missing span-panel-api schema adapter for SPAN panel {state.host}: {e}. '
+                f'Ensure span-panel-api[schema-0,schema-1] (or newer schema adapter) is installed.'
+            )
         except SpanPanelAuthError as e:
             LOGGER.error(f'Authentication failed for SPAN panel {state.host}: check passphrase. Error: {e}')
         except (SpanPanelConnectionError, SpanPanelTimeoutError) as e:

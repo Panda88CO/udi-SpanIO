@@ -19,10 +19,11 @@ except ImportError:
 class udiSpanPanelNode(udi_interface.Node):
     from  udiLib import node_queue, wait_for_node_done, openClose2ISY, priority2ISY, mask2key, bool2ISY, round2ISY, my_setDriver, gridState2ISY, gridStatus2ISY, SpanNodeNameManager
 
-    def __init__(self, polyglot, primary, address, name, span_ipadr, token, battery, passphrase=None, mqtt_manager=None, name_manager=None, rename_needed=False):
+    def __init__(self, polyglot, primary, address, name, span_ipadr, token, battery, passphrase=None, mqtt_manager=None, name_manager=None, rename_needed=False, controller=None):
         super().__init__(polyglot, primary, address, name)
         logging.info(f'_init_ Span Panel Status Node {span_ipadr}')
         self.poly = polyglot
+        self.controller = controller
         self.name_manager = name_manager or SpanNodeNameManager(poly=polyglot)
         self.span_ipadr = span_ipadr
         self.panel_node_adr = address
@@ -109,7 +110,27 @@ class udiSpanPanelNode(udi_interface.Node):
                 return True
         return False
 
-    def publish_circuit_profile(self):
+    def publish_circuit_profile(self, circuit_names: Optional[Dict[str, str]] = None):
+        if self.controller is not None and hasattr(self.controller, 'register_panel_circuits'):
+            if circuit_names is None:
+                # Reconstruct {cid: name} from existing maps
+                circuit_names = {
+                    cid: self.index_name_map.get(idx, cid)
+                    for cid, idx in self.circuit_index_map.items()
+                }
+            if circuit_names:
+                self.circuit_index_map = self.controller.register_panel_circuits(
+                    self.span_ipadr, self.name, circuit_names
+                )
+                self.index_name_map = {
+                    idx: circuit_names[cid]
+                    for cid, idx in self.circuit_index_map.items()
+                    if cid in circuit_names
+                }
+                if self.summary_node:
+                    self.summary_node.set_circuit_index_map(self.circuit_index_map)
+            return
+
         try:
             updater = getattr(self.poly, 'updateJsonProfile', None)
             if callable(updater) and self.index_name_map:
@@ -139,22 +160,24 @@ class udiSpanPanelNode(udi_interface.Node):
             except Exception:
                 pass
 
-            # Build 1-based index mapping for UOM 25 CIRCUIT_LIST
+            # Build resolved circuit names map and register into global UOM 25 CIRCUIT_LIST
             self.circuit_index_map = {}
             self.index_name_map = {}
+            panel_circuit_names: Dict[str, str] = {}
             for idx, (cid, cdata) in enumerate(self.circuits.items(), start=1):
                 raw_cname = cdata.get('name', str(cid)) if isinstance(cdata, dict) else str(cid)
                 c_adr = self.poly.getValidAddress(str(cid)[-14:])
                 c_valid = self.poly.getValidName(raw_cname)
                 c_resolved, _ = self.name_manager.resolve_node_name(c_adr, c_valid, poly=self.poly, nodes_in_db=db_nodes)
+                panel_circuit_names[str(cid)] = c_resolved
                 self.circuit_index_map[str(cid)] = idx
                 self.index_name_map[idx] = c_resolved
 
             # Push dynamic profile with discovered circuit names for UOM 25 CIRCUIT_LIST
-            self.publish_circuit_profile()
+            self.publish_circuit_profile(panel_circuit_names)
 
-            # Create the dedicated Power Summary Node
-            sum_adr = self.poly.getValidAddress(self.panel_node_adr[:10] + '_sum')
+            # Create the dedicated Power Summary Node (use last 10 chars to preserve unique host octet)
+            sum_adr = self.poly.getValidAddress(self.panel_node_adr[-10:] + '_sum')
             default_sum_name = f'{self.name} Summary'
             sum_name, sum_rename = self.name_manager.resolve_node_name(sum_adr, default_sum_name, poly=self.poly, nodes_in_db=db_nodes)
             if self.summary_node is None:
@@ -320,6 +343,7 @@ class udiSpanPanelNode(udi_interface.Node):
         if self.name != panel_resolved:
             logging.info(f'Updating panel node name: "{self.name}" -> "{panel_resolved}" (rename_needed={panel_rename})')
             self.name = panel_resolved
+            profile_update_needed = True
             if panel_rename:
                 if hasattr(self, 'rename') and callable(getattr(self, 'rename')):
                     try:
@@ -334,7 +358,7 @@ class udiSpanPanelNode(udi_interface.Node):
 
         # 3. Check Summary Node Name
         if self.summary_node:
-            sum_adr = self.poly.getValidAddress(self.panel_node_adr[:10] + '_sum')
+            sum_adr = self.poly.getValidAddress(self.panel_node_adr[-10:] + '_sum')
             default_sum_name = f'{self.name} Summary'
             sum_resolved, sum_rename = self.name_manager.resolve_node_name(
                 sum_adr, default_sum_name, poly=self.poly, nodes_in_db=db_nodes

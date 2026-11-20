@@ -3,6 +3,7 @@ import time
 import traceback
 import requests
 import json
+import threading
 
 from udiSpanPanelNode import udiSpanPanelNode
 from SpanMqttManager import SpanMqttManager
@@ -42,6 +43,9 @@ class SPANController(udi_interface.Node):
         self.span_passphrases = []
         self.battery_backup = False
         self.hb = 0
+        self._circuit_profile_lock = threading.Lock()
+        self._global_circuit_index_map = {}
+        self._global_index_name_map = {}
         self.mqtt_manager = SpanMqttManager(
             min_update_interval=30.0,
             power_threshold_w=15.0,
@@ -147,6 +151,50 @@ class SPANController(udi_interface.Node):
                     self.poly.Notices['profile'] = f'Dynamic profile update failed: {e}'
                 except Exception:
                     pass
+
+    def register_panel_circuits(self, panel_ip: str, panel_name: str, circuit_names: dict) -> dict:
+        """Register a panel's circuits into the global UOM 25 CIRCUIT_LIST editor.
+
+        Ensures unique 1-based indices across multiple SPAN panels so panels never
+        overwrite each other's circuit names in the shared PG3x dynamic profile.
+        Returns a mapping of {circuit_id: global_index} for the panel.
+        """
+        with self._circuit_profile_lock:
+            multi_panel = len(self.span_ip_list) > 1
+            panel_map = {}
+            changed = False
+
+            for cid, cname in circuit_names.items():
+                key = f'{panel_ip}:{cid}'
+                if key in self._global_circuit_index_map:
+                    idx = self._global_circuit_index_map[key]
+                else:
+                    idx = len(self._global_circuit_index_map) + 1
+                    self._global_circuit_index_map[key] = idx
+                    changed = True
+
+                label = f'{panel_name}: {cname}' if multi_panel else cname
+                if self._global_index_name_map.get(idx) != label:
+                    self._global_index_name_map[idx] = label
+                    changed = True
+
+                panel_map[str(cid)] = idx
+
+            if changed and self._global_index_name_map:
+                try:
+                    updater = getattr(self.poly, 'updateJsonProfile', None)
+                    if callable(updater):
+                        payload = dynamic_profile_payload(VERSION, dict(self._global_index_name_map))
+                        updater(payload)
+                        logging.info(
+                            f'Published unified dynamic CIRCUIT_LIST profile '
+                            f'({len(self._global_index_name_map)} circuits across '
+                            f'{max(1, len(self.span_ip_list))} panel(s))'
+                        )
+                except Exception as e:
+                    logging.warning(f'Error publishing unified dynamic circuit profile: {e}')
+
+            return panel_map
         
     
     def customDataHandler(self, Data):
@@ -332,6 +380,8 @@ class SPANController(udi_interface.Node):
         if resolved_ctrl_name and resolved_ctrl_name != self.name:
             self.name = resolved_ctrl_name
 
+        self.poly.Notices.clear()
+
         for indx, IPaddress in enumerate(self.span_ip_list):
             #self.span_panel[indx]= SpanAccess(IPaddress)    
             token = None
@@ -356,15 +406,13 @@ class SPANController(udi_interface.Node):
                     logging.info(f'Panel {IPaddress}: REST registration token not available, but MQTT passphrase is set. Proceeding with MQTT.')
                 else:
                     logging.warning(f'Panel {IPaddress}: No REST token and no passphrase provided.')
-                    self.poly.Notices['panel'] = f'Click Span Panel ({IPaddress}) door switch 3 times or enter PANEL_PASSPHRASES'
-
-            self.poly.Notices.clear()
+                    self.poly.Notices[f'panel_{address}'] = f'Click Span Panel ({IPaddress}) door switch 3 times or enter PANEL_PASSPHRASES'
 
             logging.debug(f'Panel info : {address} , {resolved_panel_name}')
             self.span_panel[IPaddress] = udiSpanPanelNode(
                 self.poly, address, address, resolved_panel_name, IPaddress, token, self.battery_backup,
                 passphrase=passphrase, mqtt_manager=self.mqtt_manager, name_manager=self.name_manager,
-                rename_needed=panel_rename
+                rename_needed=panel_rename, controller=self
             )    
             # need to retrieve unique ID and Token and store in customData          
             
